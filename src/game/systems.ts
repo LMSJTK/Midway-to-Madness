@@ -163,7 +163,8 @@ export function GuestAISystem(world: World, dt: number) {
       
       if (dist < 10) {
         // Arrived
-        if (guest.money >= target.ticketPrice && target.currentRiders < target.capacity && (target.type !== 'food' || target.stock > 0) && !target.isBroken) {
+        const hasCapacity = target.type === 'food' || target.type === 'bathroom' || target.currentRiders < target.capacity;
+        if (guest.money >= target.ticketPrice && hasCapacity && (target.type !== 'food' || target.stock > 0) && !target.isBroken) {
           guest.money -= target.ticketPrice;
           target.currentRiders++;
           target.customersToday++;
@@ -254,6 +255,25 @@ export function StaffAISystem(world: World, dt: number) {
   let maintCount = 0;
   let saniCount = 0;
 
+  const claimedRideTargets = new Set<string>();
+  const claimedBathroomTargets = new Set<string>();
+  const claimedTrashTargets = new Set<number>();
+
+  for (const entity of staffEntities) {
+    const staff = world.getComponent(entity, 'Staff');
+    if (!staff || (staff.state !== 'walking' && staff.state !== 'working') || staff.targetId == null) continue;
+
+    if (staff.type === 'maintenance' && typeof staff.targetId === 'string') {
+      claimedRideTargets.add(staff.targetId);
+    } else if (staff.type === 'sanitation') {
+      if (typeof staff.targetId === 'string') {
+        claimedBathroomTargets.add(staff.targetId);
+      } else {
+        claimedTrashTargets.add(staff.targetId);
+      }
+    }
+  }
+
   for (const entity of staffEntities) {
     const staff = world.getComponent(entity, 'Staff')!;
     const pos = world.getComponent(entity, 'Position')!;
@@ -266,26 +286,32 @@ export function StaffAISystem(world: World, dt: number) {
       staff.timer -= dt;
       if (staff.timer <= 0) {
         if (staff.type === 'maintenance') {
-          const brokenRide = state.placedItems.find(i => i.isBroken && i.type !== 'bathroom');
+          const availableBrokenRides = state.placedItems.filter(i => i.isBroken && i.type !== 'bathroom' && !claimedRideTargets.has(i.id));
+          const brokenRide = (availableBrokenRides.length > 0 ? availableBrokenRides : state.placedItems.filter(i => i.isBroken && i.type !== 'bathroom'))[0];
           if (brokenRide) {
             staff.targetId = brokenRide.id;
             staff.state = 'walking';
+            claimedRideTargets.add(brokenRide.id);
           } else {
             vel.vx = (Math.random() - 0.5) * 50;
             vel.vy = (Math.random() - 0.5) * 50;
             staff.timer = 2 + Math.random() * 3;
           }
         } else if (staff.type === 'sanitation') {
-          const brokenBathroom = state.placedItems.find(i => i.isBroken && i.type === 'bathroom');
+          const availableBrokenBathrooms = state.placedItems.filter(i => i.isBroken && i.type === 'bathroom' && !claimedBathroomTargets.has(i.id));
+          const brokenBathroom = (availableBrokenBathrooms.length > 0 ? availableBrokenBathrooms : state.placedItems.filter(i => i.isBroken && i.type === 'bathroom'))[0];
           if (brokenBathroom) {
             staff.targetId = brokenBathroom.id;
             staff.state = 'walking';
+            claimedBathroomTargets.add(brokenBathroom.id);
           } else {
             const trashes = world.getEntitiesWith(['Trash', 'Position']);
             if (trashes.length > 0) {
               let closest = -1;
               let minDist = Infinity;
               for (const t of trashes) {
+                if (claimedTrashTargets.has(t)) continue;
+
                 const tPos = world.getComponent(t, 'Position')!;
                 const dist = Math.pow(tPos.x - pos.x, 2) + Math.pow(tPos.y - pos.y, 2);
                 if (dist < minDist) {
@@ -296,6 +322,7 @@ export function StaffAISystem(world: World, dt: number) {
               if (closest !== -1) {
                 staff.targetId = closest;
                 staff.state = 'walking';
+                claimedTrashTargets.add(closest);
               }
             } else {
               vel.vx = (Math.random() - 0.5) * 50;
