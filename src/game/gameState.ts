@@ -1,3 +1,5 @@
+import { ITEM_DEFINITIONS } from './items';
+
 export type Phase = 'MAP' | 'BIDDING' | 'SETUP' | 'OPERATION' | 'TEARDOWN' | 'SUMMARY';
 
 export interface Location {
@@ -31,7 +33,7 @@ export interface Staff {
 
 export interface PlacedItem {
   id: string;
-  type: 'kiddie' | 'major' | 'spectacular' | 'food';
+  type: string;
   x: number;
   y: number;
   width: number;
@@ -104,6 +106,51 @@ export class StateManager {
       expensesToday: 0,
     };
     this.notify();
+  }
+
+  placeItem(itemType: string, x: number, y: number): boolean {
+    const def = ITEM_DEFINITIONS[itemType];
+    if (!def) return false;
+
+    // Check inventory
+    let inventoryKey: keyof Inventory | null = null;
+    if (itemType === 'kiddie') inventoryKey = 'kiddieRides';
+    if (itemType === 'major') inventoryKey = 'majorRides';
+    if (itemType === 'spectacular') inventoryKey = 'spectacularRides';
+    if (itemType === 'food') inventoryKey = 'foodStalls';
+    if (itemType === 'bathroom') inventoryKey = 'bathrooms';
+
+    if (inventoryKey && this.state.inventory[inventoryKey] > 0) {
+      this.state.inventory[inventoryKey]--;
+      
+      const newItem: PlacedItem = {
+        id: Math.random().toString(36).substr(2, 9),
+        type: itemType,
+        x,
+        y,
+        width: def.width,
+        height: def.height,
+        built: false,
+        buildTimeRemaining: 3,
+        ticketPrice: def.basePrice,
+        basePrice: def.basePrice,
+        excitement: def.excitement || 0,
+        capacity: def.capacity || 0,
+        currentRiders: 0,
+        duration: def.duration || 0,
+        timer: 0,
+        revenueToday: 0,
+        customersToday: 0,
+        stock: itemType === 'food' ? 100 : 0,
+        isBroken: false,
+        condition: 100,
+      };
+      
+      this.state.placedItems.push(newItem);
+      this.notify();
+      return true;
+    }
+    return false;
   }
 }
 

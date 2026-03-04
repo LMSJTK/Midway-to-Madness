@@ -54,9 +54,9 @@ export function GuestAISystem(world: World, dt: number) {
   const state = gameStateManager.state;
   
   for (const entity of guests) {
-    const guest = world.getComponent<Guest>(entity, 'Guest')!;
-    const pos = world.getComponent<Position>(entity, 'Position')!;
-    const vel = world.getComponent<Velocity>(entity, 'Velocity')!;
+    const guest = world.getComponent(entity, 'Guest')!;
+    const pos = world.getComponent(entity, 'Position')!;
+    const vel = world.getComponent(entity, 'Velocity')!;
 
     guest.hunger += dt * 0.5; // Hunger increases over time
     guest.bladder += dt * 0.8; // Bladder increases over time
@@ -239,8 +239,8 @@ export function GuestAISystem(world: World, dt: number) {
 export function MovementSystem(world: World, dt: number) {
   const entities = world.getEntitiesWith(['Position', 'Velocity']);
   for (const entity of entities) {
-    const pos = world.getComponent<Position>(entity, 'Position')!;
-    const vel = world.getComponent<Velocity>(entity, 'Velocity')!;
+    const pos = world.getComponent(entity, 'Position')!;
+    const vel = world.getComponent(entity, 'Velocity')!;
     pos.x += vel.vx * dt;
     pos.y += vel.vy * dt;
   }
@@ -255,9 +255,9 @@ export function StaffAISystem(world: World, dt: number) {
   let saniCount = 0;
 
   for (const entity of staffEntities) {
-    const staff = world.getComponent<StaffMember>(entity, 'Staff')!;
-    const pos = world.getComponent<Position>(entity, 'Position')!;
-    const vel = world.getComponent<Velocity>(entity, 'Velocity')!;
+    const staff = world.getComponent(entity, 'Staff')!;
+    const pos = world.getComponent(entity, 'Position')!;
+    const vel = world.getComponent(entity, 'Velocity')!;
 
     if (staff.type === 'maintenance') maintCount++;
     if (staff.type === 'sanitation') saniCount++;
@@ -286,7 +286,7 @@ export function StaffAISystem(world: World, dt: number) {
               let closest = -1;
               let minDist = Infinity;
               for (const t of trashes) {
-                const tPos = world.getComponent<Position>(t, 'Position')!;
+                const tPos = world.getComponent(t, 'Position')!;
                 const dist = Math.pow(tPos.x - pos.x, 2) + Math.pow(tPos.y - pos.y, 2);
                 if (dist < minDist) {
                   minDist = dist;
@@ -352,7 +352,7 @@ export function StaffAISystem(world: World, dt: number) {
             staff.timer = 0;
             continue;
           }
-          const tPos = world.getComponent<Position>(targetEntity, 'Position')!;
+          const tPos = world.getComponent(targetEntity, 'Position')!;
           const dist = Math.sqrt(Math.pow(tPos.x - pos.x, 2) + Math.pow(tPos.y - pos.y, 2));
           if (dist < 10) {
             world.destroyEntity(targetEntity);

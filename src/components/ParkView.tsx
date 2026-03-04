@@ -1,130 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { engine, fromIso, toIso } from '../game/engine';
-import { gameStateManager, PlacedItem } from '../game/gameState';
-import { Guest } from '../game/systems';
-
-const formatTime = (time: number) => {
-  const hours = Math.floor(time);
-  const minutes = Math.floor((time - hours) * 60);
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
-  return `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
-};
-
-function GuestInspector({ entityId }: { entityId: number }) {
-  const [guestData, setGuestData] = useState<Guest | null>(null);
-  
-  useEffect(() => {
-    let frameId: number;
-    const update = () => {
-      if (engine.world.entities.has(entityId)) {
-        const guest = engine.world.getComponent<Guest>(entityId, 'Guest');
-        if (guest) {
-          setGuestData({ ...guest });
-        }
-      } else {
-        setGuestData(null); // Guest left
-      }
-      frameId = requestAnimationFrame(update);
-    };
-    update();
-    return () => cancelAnimationFrame(frameId);
-  }, [entityId]);
-
-  if (!guestData) return (
-    <div className="absolute bottom-8 left-8 bg-zinc-800/90 p-4 border border-zinc-700 rounded-xl shadow-xl backdrop-blur-sm text-zinc-400">
-      Guest has left the park.
-    </div>
-  );
-
-  return (
-    <div className="absolute bottom-8 left-8 bg-zinc-800/90 p-4 border border-zinc-700 rounded-xl shadow-xl backdrop-blur-sm w-64 z-10">
-      <div className="flex justify-between items-center mb-2">
-        <h3 className="text-lg font-bold text-blue-400">Guest #{entityId}</h3>
-        <button 
-          onClick={() => gameStateManager.update({ selectedGuestId: null })}
-          className="text-zinc-500 hover:text-white"
-        >
-          ✕
-        </button>
-      </div>
-      <div className="text-sm space-y-1">
-        <div>State: <span className="text-white capitalize">{guestData.state}</span></div>
-        <div>Money: <span className="text-emerald-400">${guestData.money.toFixed(2)}</span> / ${guestData.initialMoney.toFixed(2)}</div>
-        <div>Excitement: <span className="text-yellow-400">{guestData.excitement.toFixed(0)}</span></div>
-        <div>Hunger: <span className="text-orange-400">{guestData.hunger.toFixed(0)}</span></div>
-        <div>Bladder: <span className="text-blue-400">{guestData.bladder.toFixed(0)}</span></div>
-        <div>Arrival: <span className="text-zinc-300">{formatTime(guestData.arrivalTime)}</span></div>
-        {guestData.targetId && <div>Target: <span className="text-zinc-300">{guestData.targetId}</span></div>}
-      </div>
-    </div>
-  );
-}
-
-function ItemInspector({ itemId }: { itemId: string }) {
-  const [itemData, setItemData] = useState<PlacedItem | null>(null);
-  
-  useEffect(() => {
-    let frameId: number;
-    const update = () => {
-      const item = gameStateManager.state.placedItems.find(i => i.id === itemId);
-      if (item) {
-        setItemData({ ...item });
-      } else {
-        setItemData(null);
-      }
-      frameId = requestAnimationFrame(update);
-    };
-    update();
-    return () => cancelAnimationFrame(frameId);
-  }, [itemId]);
-
-  if (!itemData) return null;
-
-  const handlePriceChange = (delta: number) => {
-    const newItems = [...gameStateManager.state.placedItems];
-    const index = newItems.findIndex(i => i.id === itemId);
-    if (index !== -1) {
-      newItems[index] = { ...newItems[index], ticketPrice: Math.max(1, newItems[index].ticketPrice + delta) };
-      gameStateManager.update({ placedItems: newItems });
-    }
-  };
-
-  return (
-    <div className="absolute bottom-8 right-8 bg-zinc-800/90 p-4 border border-zinc-700 rounded-xl shadow-xl backdrop-blur-sm w-64 z-10">
-      <div className="flex justify-between items-center mb-2">
-        <h3 className="text-lg font-bold text-emerald-400 capitalize">{itemData.type}</h3>
-        <button 
-          onClick={() => gameStateManager.update({ selectedItemId: null })}
-          className="text-zinc-500 hover:text-white"
-        >
-          ✕
-        </button>
-      </div>
-      <div className="text-sm space-y-2">
-        <div className="flex items-center justify-between">
-          <span>Ticket Price:</span>
-          <div className="flex items-center gap-2">
-            <button onClick={() => handlePriceChange(-1)} className="px-2 bg-zinc-700 rounded hover:bg-zinc-600">-</button>
-            <span className="text-emerald-400 w-12 text-center">${itemData.ticketPrice.toFixed(2)}</span>
-            <button onClick={() => handlePriceChange(1)} className="px-2 bg-zinc-700 rounded hover:bg-zinc-600">+</button>
-          </div>
-        </div>
-        <div className="flex justify-between"><span>Customers Today:</span> <span className="text-blue-400">{itemData.customersToday}</span></div>
-        <div className="flex justify-between"><span>Revenue Today:</span> <span className="text-emerald-400">${itemData.revenueToday.toFixed(2)}</span></div>
-        {itemData.type === 'food' && (
-          <div className="flex justify-between"><span>Stock:</span> <span className={itemData.stock > 20 ? "text-zinc-300" : "text-red-400"}>{itemData.stock}</span></div>
-        )}
-        {itemData.type !== 'food' && itemData.type !== 'bathroom' && (
-          <div className="flex justify-between"><span>Current Riders:</span> <span className="text-zinc-300">{itemData.currentRiders} / {itemData.capacity}</span></div>
-        )}
-        {itemData.type !== 'food' && itemData.type !== 'bathroom' && (
-          <div className="flex justify-between"><span>Condition:</span> <span className={itemData.condition > 30 ? "text-zinc-300" : "text-red-400"}>{itemData.condition.toFixed(0)}%</span></div>
-        )}
-      </div>
-    </div>
-  );
-}
+import { gameStateManager } from '../game/gameState';
+import { GuestInspector } from './ParkView/GuestInspector';
+import { ItemInspector } from './ParkView/ItemInspector';
+import { BuildToolbar } from './ParkView/BuildToolbar';
+import { ITEM_DEFINITIONS } from '../game/items';
 
 export function ParkView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -191,8 +71,8 @@ export function ParkView() {
       const guests = engine.world.getEntitiesWith(['Position', 'Guest', 'Renderable']);
       let clickedGuest: number | null = null;
       for (const entity of guests) {
-        const pos = engine.world.getComponent<{x: number, y: number}>(entity, 'Position')!;
-        const ren = engine.world.getComponent<{size: number}>(entity, 'Renderable')!;
+        const pos = engine.world.getComponent(entity, 'Position')!;
+        const ren = engine.world.getComponent(entity, 'Renderable')!;
         const isoPos = toIso(pos.x, pos.y);
         
         // Distance check in iso space
@@ -229,47 +109,17 @@ export function ParkView() {
     // Map screen coordinates back to logical coordinates
     const logicalPos = fromIso(screenX, screenY);
     
-    // Check inventory
-    const inventory = { ...state.inventory };
-    if (selectedTool === 'kiddie' && inventory.kiddieRides > 0) inventory.kiddieRides--;
-    else if (selectedTool === 'major' && inventory.majorRides > 0) inventory.majorRides--;
-    else if (selectedTool === 'spectacular' && inventory.spectacularRides > 0) inventory.spectacularRides--;
-    else if (selectedTool === 'food' && inventory.foodStalls > 0) inventory.foodStalls--;
-    else if (selectedTool === 'bathroom' && inventory.bathrooms > 0) inventory.bathrooms--;
-    else return; // None left
-    
-    const width = selectedTool === 'spectacular' ? 100 : selectedTool === 'major' ? 75 : 50;
-    const height = selectedTool === 'spectacular' ? 100 : selectedTool === 'major' ? 75 : 50;
-    const initialPrice = selectedTool === 'food' ? 5 : selectedTool === 'bathroom' ? 1 : selectedTool === 'kiddie' ? 3 : selectedTool === 'major' ? 6 : 10;
-    
-    const newItem: PlacedItem = {
-      id: Math.random().toString(36).substring(7),
-      type: selectedTool,
-      x: logicalPos.x - width / 2,
-      y: logicalPos.y - height / 2,
-      width,
-      height,
-      built: true, // Instant build for prototype
-      buildTimeRemaining: 0,
-      ticketPrice: initialPrice,
-      basePrice: initialPrice,
-      excitement: selectedTool === 'food' || selectedTool === 'bathroom' ? 0 : selectedTool === 'kiddie' ? 30 : selectedTool === 'major' ? 60 : 90,
-      capacity: selectedTool === 'food' || selectedTool === 'bathroom' ? 1 : selectedTool === 'kiddie' ? 8 : selectedTool === 'major' ? 16 : 24,
-      currentRiders: 0,
-      duration: selectedTool === 'food' ? 0 : selectedTool === 'bathroom' ? 2 : 5,
-      timer: 0,
-      revenueToday: 0,
-      customersToday: 0,
-      stock: selectedTool === 'food' ? 100 : 0,
-      isBroken: false,
-      condition: 100,
-    };
-    
-    gameStateManager.update({
-      inventory,
-      placedItems: [...state.placedItems, newItem]
-    });
-    setSelectedTool(null);
+    const def = ITEM_DEFINITIONS[selectedTool];
+    if (def) {
+      const success = gameStateManager.placeItem(
+        selectedTool,
+        logicalPos.x - def.width / 2,
+        logicalPos.y - def.height / 2
+      );
+      if (success) {
+        setSelectedTool(null);
+      }
+    }
   };
 
   const handleOpenMidway = () => {
@@ -315,60 +165,11 @@ export function ParkView() {
         {state.selectedItemId !== null && <ItemInspector itemId={state.selectedItemId} />}
 
         {state.phase === 'SETUP' && (
-          <div className="absolute top-8 right-8 bg-zinc-800/90 p-6 border border-zinc-700 rounded-xl shadow-xl backdrop-blur-sm">
-            <h3 className="text-xl font-bold mb-4 text-emerald-400">Setup Phase</h3>
-            <p className="text-sm text-zinc-400 mb-6">Place your rides and stalls on the lot.</p>
-            
-            <div className="space-y-3 mb-6">
-              <button 
-                onClick={() => setSelectedTool('kiddie')}
-                disabled={state.inventory.kiddieRides === 0}
-                className={`w-full text-left px-4 py-2 rounded flex justify-between items-center ${selectedTool === 'kiddie' ? 'bg-emerald-600' : 'bg-zinc-700 hover:bg-zinc-600'} ${state.inventory.kiddieRides === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <span>Kiddie Ride</span>
-                <span className="font-mono bg-zinc-900 px-2 py-1 rounded text-xs">{state.inventory.kiddieRides}</span>
-              </button>
-              <button 
-                onClick={() => setSelectedTool('major')}
-                disabled={state.inventory.majorRides === 0}
-                className={`w-full text-left px-4 py-2 rounded flex justify-between items-center ${selectedTool === 'major' ? 'bg-emerald-600' : 'bg-zinc-700 hover:bg-zinc-600'} ${state.inventory.majorRides === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <span>Major Ride</span>
-                <span className="font-mono bg-zinc-900 px-2 py-1 rounded text-xs">{state.inventory.majorRides}</span>
-              </button>
-              <button 
-                onClick={() => setSelectedTool('spectacular')}
-                disabled={state.inventory.spectacularRides === 0}
-                className={`w-full text-left px-4 py-2 rounded flex justify-between items-center ${selectedTool === 'spectacular' ? 'bg-emerald-600' : 'bg-zinc-700 hover:bg-zinc-600'} ${state.inventory.spectacularRides === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <span>Spectacular Ride</span>
-                <span className="font-mono bg-zinc-900 px-2 py-1 rounded text-xs">{state.inventory.spectacularRides}</span>
-              </button>
-              <button 
-                onClick={() => setSelectedTool('food')}
-                disabled={state.inventory.foodStalls === 0}
-                className={`w-full text-left px-4 py-2 rounded flex justify-between items-center ${selectedTool === 'food' ? 'bg-emerald-600' : 'bg-zinc-700 hover:bg-zinc-600'} ${state.inventory.foodStalls === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <span>Food Stall</span>
-                <span className="font-mono bg-zinc-900 px-2 py-1 rounded text-xs">{state.inventory.foodStalls}</span>
-              </button>
-              <button 
-                onClick={() => setSelectedTool('bathroom')}
-                disabled={state.inventory.bathrooms === 0}
-                className={`w-full text-left px-4 py-2 rounded flex justify-between items-center ${selectedTool === 'bathroom' ? 'bg-emerald-600' : 'bg-zinc-700 hover:bg-zinc-600'} ${state.inventory.bathrooms === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <span>Bathroom</span>
-                <span className="font-mono bg-zinc-900 px-2 py-1 rounded text-xs">{state.inventory.bathrooms}</span>
-              </button>
-            </div>
-            
-            <button 
-              onClick={handleOpenMidway}
-              className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-zinc-900 font-bold rounded-lg transition-colors"
-            >
-              Open Midway
-            </button>
-          </div>
+          <BuildToolbar 
+            selectedTool={selectedTool} 
+            setSelectedTool={setSelectedTool} 
+            onOpenMidway={handleOpenMidway} 
+          />
         )}
         
         {state.phase === 'TEARDOWN' && (

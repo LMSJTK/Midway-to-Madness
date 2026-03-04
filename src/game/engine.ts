@@ -241,8 +241,8 @@ export class GameEngine {
        // Add guests, staff, and trash
        const renderables = this.world.getEntitiesWith(['Position', 'Renderable']);
        for (const entity of renderables) {
-         const pos = this.world.getComponent<{x: number, y: number}>(entity, 'Position')!;
-         const ren = this.world.getComponent<{type: string, color: string, size: number}>(entity, 'Renderable')!;
+         const pos = this.world.getComponent(entity, 'Position')!;
+         const ren = this.world.getComponent(entity, 'Renderable')!;
          
          if (ren.type === 'trash') {
            renderItems.push({
@@ -297,8 +297,8 @@ export class GameEngine {
 
        // Draw selection highlight for guest
        if (state.selectedGuestId !== null && this.world.entities.has(state.selectedGuestId)) {
-         const pos = this.world.getComponent<{x: number, y: number}>(state.selectedGuestId, 'Position');
-         const ren = this.world.getComponent<{size: number}>(state.selectedGuestId, 'Renderable');
+         const pos = this.world.getComponent(state.selectedGuestId, 'Position');
+         const ren = this.world.getComponent(state.selectedGuestId, 'Renderable');
          if (pos && ren) {
            const p = toIso(pos.x, pos.y);
            this.ctx.strokeStyle = '#fbbf24';
