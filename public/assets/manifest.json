@@ -1,1 +1,15 @@
-{}
+{
+  "hot_dog_stand": {
+    "path": "assets/sprites/stall/hot_dog_stand.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "entityType": "food",
+    "slot": "base_idle"
+  }
+}

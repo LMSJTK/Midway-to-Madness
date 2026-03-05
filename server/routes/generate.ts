@@ -2,6 +2,9 @@ import { Router } from 'express';
 import { GoogleGenAI } from '@google/genai';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = Router();
 
@@ -29,7 +32,7 @@ router.post('/', async (req, res) => {
     const ai = new GoogleGenAI({ apiKey });
 
     const response = await ai.models.generateImages({
-      model: 'imagen-3.0-generate-002',
+      model: 'imagen-4.0-generate-001',
       prompt: fullPrompt,
       config: {
         numberOfImages: 1,
@@ -59,7 +62,7 @@ router.post('/', async (req, res) => {
     res.json({
       prompt: fullPrompt,
       imagePath: relativePath,
-      model: 'imagen-3.0-generate-002',
+      model: 'imagen-4.0-generate-001',
     });
   } catch (err: any) {
     console.error('Generation error:', err);

@@ -16,11 +16,20 @@ export default defineConfig(({mode}) => {
       },
     },
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
       proxy: {
-        '/api': 'http://localhost:3001',
+        // Proxy API requests to the Express backend
+        '/api': {
+          target: process.env.API_URL || 'http://backend:3001',
+          changeOrigin: true,
+          secure: false,
+        },
+        // Proxy generated image assets to the Express backend bypassing Vite's static cache
+        '/assets': {
+          target: process.env.API_URL || 'http://backend:3001',
+          changeOrigin: true,
+          secure: false,
+        },
       },
     },
   };

@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  # The Vite React Frontend
+  frontend:
+    build: .
+    command: npm run dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules # Prevents host OS node_modules from overwriting container's
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - DISABLE_HMR=false
+      - API_URL=http://backend:3001
+    depends_on:
+      - backend
+
+  # The Express Asset Engine Backend
+  backend:
+    build: .
+    command: npm run editor:server
+    ports:
+      - "3001:3001"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
