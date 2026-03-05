@@ -42,6 +42,7 @@ export interface PlacedItem {
   timer: number;
   revenueToday: number;
   customersToday: number;
+  patronsServed: number; // total patrons served today, drives quality-based breakdown
   stock: number;
   isBroken: boolean;
   condition: number;
@@ -153,7 +154,8 @@ export class StateManager {
       timer: 0,
       revenueToday: 0,
       customersToday: 0,
-      stock: STOCK_CATEGORIES.includes(def.category) ? 100 : 0,
+      patronsServed: 0,
+      stock: STOCK_CATEGORIES.includes(def.category) ? Math.round(50 + def.quality * 1.5) : 0,
       isBroken: false,
       condition: 100,
     };

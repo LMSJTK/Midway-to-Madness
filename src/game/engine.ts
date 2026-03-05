@@ -225,7 +225,8 @@ export class GameEngine {
        // Add placed items
        for (const item of state.placedItems) {
          const slot = item.isBroken ? 'broken_state' : 'base_idle';
-         const sprite = spriteRegistry.get(item.type, slot);
+         // Look up sprite by specific item definition ID first, then fall back to category
+         const sprite = spriteRegistry.get(item.itemDefId, slot) || spriteRegistry.get(item.type, slot);
 
          if (sprite) {
            renderItems.push({

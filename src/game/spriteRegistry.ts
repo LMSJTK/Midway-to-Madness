@@ -27,6 +27,7 @@ export interface ManifestGameStats {
   capacity: number | null;
   duration: number | null;
   travelWeight: number;
+  quality: number;
 }
 
 export interface ManifestEntry {
@@ -110,6 +111,7 @@ class SpriteRegistry {
           color: catDefaults?.color ?? '#fff',
           prestige: gs.prestige,
           value: gs.value,
+          quality: gs.quality,
           travelWeight: gs.travelWeight,
           unlockDay: gs.unlockDay,
           unlockLocation: gs.unlockLocation ?? undefined,

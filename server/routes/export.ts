@@ -31,6 +31,7 @@ router.post('/', (_req, res) => {
       capacity: number | null;
       duration: number | null;
       travelWeight: number;
+      quality: number;
     };
   }> = {};
 
@@ -63,6 +64,7 @@ router.post('/', (_req, res) => {
         capacity: asset.capacity,
         duration: asset.duration,
         travelWeight: asset.travel_weight,
+        quality: asset.quality,
       },
     };
   }

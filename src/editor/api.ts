@@ -31,6 +31,7 @@ export interface AssetRecord {
   capacity: number | null;
   duration: number | null;
   travel_weight: number;
+  quality: number;
 }
 
 const API_BASE = '/api';

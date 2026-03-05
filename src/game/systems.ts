@@ -185,6 +185,7 @@ export function GuestAISystem(world: World, dt: number) {
           guest.money -= target.ticketPrice;
           target.currentRiders++;
           target.customersToday++;
+          target.patronsServed++;
           target.revenueToday += target.ticketPrice;
           if (STOCK_CATEGORIES.includes(category)) target.stock--;
 
@@ -192,6 +193,20 @@ export function GuestAISystem(world: World, dt: number) {
           const netRevenue = target.ticketPrice * (1 - (state.currentLocation?.revenueShare || 0));
           state.stats.revenueToday += netRevenue;
           state.money += netRevenue;
+
+          // Quality-based breakdown: once patronsServed exceeds quality threshold,
+          // each additional patron has an increasing chance of causing a breakdown.
+          const def = ITEM_DEFINITIONS[target.itemDefId];
+          const quality = def?.quality ?? 50;
+          if (target.patronsServed > quality) {
+            const excess = target.patronsServed - quality;
+            // Breakdown chance ramps up: 5% at 1 over, ~40% at 10 over, ~65% at 20 over
+            const breakdownChance = 1 - Math.exp(-excess * 0.05);
+            if (Math.random() < breakdownChance) {
+              target.isBroken = true;
+              target.condition = 0;
+            }
+          }
 
           if (target.type === 'food') {
             guest.state = 'eating';
@@ -203,12 +218,6 @@ export function GuestAISystem(world: World, dt: number) {
             guest.timer = 2;
             guest.bladder = 0;
             target.currentRiders--;
-
-            target.condition -= 2;
-            if (target.condition <= 0) {
-              target.isBroken = true;
-              target.condition = 0;
-            }
           } else if (target.type === 'gameStall') {
             guest.state = 'eating'; // Reuse for quick interactions
             guest.timer = 4;
@@ -222,13 +231,6 @@ export function GuestAISystem(world: World, dt: number) {
             guest.state = 'riding';
             guest.timer = target.duration;
             guest.excitement += target.excitement;
-            
-            // Degrade condition
-            target.condition -= 1;
-            if (target.condition <= 0) {
-              target.isBroken = true;
-              target.condition = 0;
-            }
           }
           vel.vx = 0;
           vel.vy = 0;
