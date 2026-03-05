@@ -46,6 +46,7 @@ const gameStatCols: [string, string][] = [
   ['capacity',       'INTEGER'],
   ['duration',       'INTEGER'],
   ['travel_weight',  'INTEGER NOT NULL DEFAULT 1'],
+  ['quality',        'INTEGER NOT NULL DEFAULT 50'],
 ];
 for (const [col, def] of gameStatCols) {
   try { db.exec(`ALTER TABLE assets ADD COLUMN ${col} ${def}`); } catch { /* already exists */ }
@@ -79,6 +80,7 @@ export interface AssetRow {
   capacity: number | null;
   duration: number | null;
   travel_weight: number;
+  quality: number;
 }
 
 export const queries = {
@@ -92,11 +94,11 @@ export const queries = {
     INSERT INTO assets (id, name, category, state, prompt, negative_prompt, model, seed,
                         grid_w, grid_h, anchor_x, anchor_y, entity_type, slot, image_path,
                         prestige, value, item_cost, base_price, unlock_day, unlock_location,
-                        capacity, duration, travel_weight)
+                        capacity, duration, travel_weight, quality)
     VALUES (@id, @name, @category, @state, @prompt, @negative_prompt, @model, @seed,
             @grid_w, @grid_h, @anchor_x, @anchor_y, @entity_type, @slot, @image_path,
             @prestige, @value, @item_cost, @base_price, @unlock_day, @unlock_location,
-            @capacity, @duration, @travel_weight)
+            @capacity, @duration, @travel_weight, @quality)
   `),
 
   update: db.prepare(`
@@ -107,7 +109,7 @@ export const queries = {
       entity_type = @entity_type, slot = @slot, image_path = @image_path,
       prestige = @prestige, value = @value, item_cost = @item_cost, base_price = @base_price,
       unlock_day = @unlock_day, unlock_location = @unlock_location,
-      capacity = @capacity, duration = @duration, travel_weight = @travel_weight,
+      capacity = @capacity, duration = @duration, travel_weight = @travel_weight, quality = @quality,
       updated_at = datetime('now')
     WHERE id = @id
   `),

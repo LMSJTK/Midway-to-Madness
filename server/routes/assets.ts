@@ -65,6 +65,7 @@ router.post('/', (req, res) => {
     capacity: asset.capacity ?? null,
     duration: asset.duration ?? null,
     travel_weight: asset.travel_weight ?? 1,
+    quality: asset.quality ?? 50,
   });
 
   const created = queries.getById.get(asset.id) as AssetRow;

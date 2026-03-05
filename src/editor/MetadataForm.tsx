@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { AssetRecord, assetsApi, exportApi } from './api';
+import { ITEM_DEFINITIONS, ItemCategory } from '../game/items';
 
-const ENTITY_TYPES = [
-  { value: '', label: '(none)' },
-  { value: 'kiddie', label: 'Kiddie Ride' },
-  { value: 'major', label: 'Major Attraction' },
-  { value: 'spectacular', label: 'Spectacular Ride' },
-  { value: 'food', label: 'Food Stall' },
-  { value: 'bathroom', label: 'Bathroom' },
-  { value: 'gameStall', label: 'Game Stall' },
-  { value: 'shop', label: 'Gift Shop' },
-  { value: 'performance', label: 'Live Performance' },
-];
+const CATEGORY_ORDER: ItemCategory[] = ['kiddie', 'major', 'spectacular', 'food', 'bathroom', 'gameStall', 'shop', 'performance'];
+const CATEGORY_LABELS: Record<ItemCategory, string> = {
+  kiddie: 'Kiddie Rides',
+  major: 'Major Rides',
+  spectacular: 'Spectacular',
+  food: 'Food',
+  bathroom: 'Bathrooms',
+  gameStall: 'Game Stalls',
+  shop: 'Shops',
+  performance: 'Performances',
+};
 
 const SLOTS = ['base_idle', 'base_active', 'broken_state', 'base_dirty', 'icon_small'];
 
@@ -108,7 +109,18 @@ export function MetadataForm({ asset, onAssetUpdated }: Props) {
             onChange={e => handleFieldChange('entity_type', e.target.value || null)}
             className="bg-zinc-700 text-white text-sm rounded px-2 py-1.5"
           >
-            {ENTITY_TYPES.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+            <option value="">(none)</option>
+            {CATEGORY_ORDER.map(cat => {
+              const items = Object.values(ITEM_DEFINITIONS).filter(d => d.category === cat);
+              if (items.length === 0) return null;
+              return (
+                <optgroup key={cat} label={CATEGORY_LABELS[cat]}>
+                  {items.map(item => (
+                    <option key={item.id} value={item.id}>{item.name}</option>
+                  ))}
+                </optgroup>
+              );
+            })}
           </select>
         </label>
 
@@ -131,6 +143,7 @@ export function MetadataForm({ asset, onAssetUpdated }: Props) {
           {([
             ['prestige', 'Prestige', 'number'],
             ['value', 'Value', 'number'],
+            ['quality', 'Quality', 'number'],
             ['item_cost', 'Cost', 'number'],
             ['base_price', 'Base Price', 'number'],
             ['unlock_day', 'Unlock Day', 'number'],
