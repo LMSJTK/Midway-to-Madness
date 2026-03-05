@@ -52,13 +52,13 @@ export function ItemInspector({ itemId }: { itemId: string }) {
         </div>
         <div className="flex justify-between"><span>Customers Today:</span> <span className="text-blue-400">{itemData.customersToday}</span></div>
         <div className="flex justify-between"><span>Revenue Today:</span> <span className="text-emerald-400">${itemData.revenueToday.toFixed(2)}</span></div>
-        {itemData.type === 'food' && (
+        {(itemData.type === 'food' || itemData.type === 'shop') && (
           <div className="flex justify-between"><span>Stock:</span> <span className={itemData.stock > 20 ? "text-zinc-300" : "text-red-400"}>{itemData.stock}</span></div>
         )}
-        {itemData.type !== 'food' && itemData.type !== 'bathroom' && (
-          <div className="flex justify-between"><span>Current Riders:</span> <span className="text-zinc-300">{itemData.currentRiders} / {itemData.capacity}</span></div>
+        {itemData.capacity > 0 && (
+          <div className="flex justify-between"><span>Current {itemData.type === 'performance' ? 'Audience' : 'Riders'}:</span> <span className="text-zinc-300">{itemData.currentRiders} / {itemData.capacity}</span></div>
         )}
-        {itemData.type !== 'food' && itemData.type !== 'bathroom' && (
+        {itemData.capacity > 0 && (
           <div className="flex justify-between"><span>Condition:</span> <span className={itemData.condition > 30 ? "text-zinc-300" : "text-red-400"}>{itemData.condition.toFixed(0)}%</span></div>
         )}
       </div>

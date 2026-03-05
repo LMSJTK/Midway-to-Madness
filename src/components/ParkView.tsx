@@ -62,33 +62,51 @@ export function ParkView() {
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
-    
+
     const screenX = (e.clientX - rect.left - engine.camera.x) / engine.camera.zoom;
     const screenY = (e.clientY - rect.top - engine.camera.y) / engine.camera.zoom;
-    
-    if (state.phase === 'OPERATION') {
-      // Check for guest clicks
-      const guests = engine.world.getEntitiesWith(['Position', 'Guest', 'Renderable']);
-      let clickedGuest: number | null = null;
-      for (const entity of guests) {
-        const pos = engine.world.getComponent(entity, 'Position')!;
-        const ren = engine.world.getComponent(entity, 'Renderable')!;
-        const isoPos = toIso(pos.x, pos.y);
-        
-        // Distance check in iso space
-        const dist = Math.sqrt(Math.pow(isoPos.x - screenX, 2) + Math.pow(isoPos.y - screenY, 2));
-        if (dist <= ren.size * 3) { // slightly larger hit area
-          clickedGuest = entity;
-          break;
+
+    if (state.phase === 'OPERATION' || state.phase === 'SETUP') {
+      // In SETUP with a tool selected, place items instead of selecting
+      if (state.phase === 'SETUP' && selectedTool) {
+        const logicalPos = fromIso(screenX, screenY);
+        const def = ITEM_DEFINITIONS[selectedTool];
+        if (def) {
+          const success = gameStateManager.placeItem(
+            selectedTool,
+            logicalPos.x - def.width / 2,
+            logicalPos.y - def.height / 2
+          );
+          if (success) {
+            setSelectedTool(null);
+          }
         }
-      }
-      
-      if (clickedGuest !== null) {
-        gameStateManager.update({ selectedGuestId: clickedGuest, selectedItemId: null });
         return;
       }
 
-      // Check for item clicks
+      // Check for guest clicks (only during OPERATION)
+      if (state.phase === 'OPERATION') {
+        const guests = engine.world.getEntitiesWith(['Position', 'Guest', 'Renderable']);
+        let clickedGuest: number | null = null;
+        for (const entity of guests) {
+          const pos = engine.world.getComponent(entity, 'Position')!;
+          const ren = engine.world.getComponent(entity, 'Renderable')!;
+          const isoPos = toIso(pos.x, pos.y);
+
+          const dist = Math.sqrt(Math.pow(isoPos.x - screenX, 2) + Math.pow(isoPos.y - screenY, 2));
+          if (dist <= ren.size * 3) {
+            clickedGuest = entity;
+            break;
+          }
+        }
+
+        if (clickedGuest !== null) {
+          gameStateManager.update({ selectedGuestId: clickedGuest, selectedItemId: null });
+          return;
+        }
+      }
+
+      // Check for item clicks (SETUP and OPERATION)
       const logicalPos = fromIso(screenX, screenY);
       let clickedItem: string | null = null;
       for (let i = state.placedItems.length - 1; i >= 0; i--) {
@@ -99,26 +117,9 @@ export function ParkView() {
           break;
         }
       }
-      
+
       gameStateManager.update({ selectedGuestId: null, selectedItemId: clickedItem });
       return;
-    }
-
-    if (state.phase !== 'SETUP' || !selectedTool) return;
-    
-    // Map screen coordinates back to logical coordinates
-    const logicalPos = fromIso(screenX, screenY);
-    
-    const def = ITEM_DEFINITIONS[selectedTool];
-    if (def) {
-      const success = gameStateManager.placeItem(
-        selectedTool,
-        logicalPos.x - def.width / 2,
-        logicalPos.y - def.height / 2
-      );
-      if (success) {
-        setSelectedTool(null);
-      }
     }
   };
 
@@ -135,6 +136,9 @@ export function ParkView() {
       else if (item.type === 'spectacular') inventory.spectacularRides++;
       else if (item.type === 'food') inventory.foodStalls++;
       else if (item.type === 'bathroom') inventory.bathrooms++;
+      else if (item.type === 'gameStall') inventory.gameStalls++;
+      else if (item.type === 'shop') inventory.shops++;
+      else if (item.type === 'performance') inventory.performances++;
     });
     
     engine.world.clear(); // Remove all guests
@@ -161,7 +165,7 @@ export function ParkView() {
           className={`bg-zinc-800 border-2 border-zinc-700 rounded-lg shadow-2xl ${state.phase === 'SETUP' && selectedTool ? 'cursor-crosshair' : 'cursor-default'}`}
         />
         
-        {state.selectedGuestId !== null && <GuestInspector entityId={state.selectedGuestId} />}
+        {state.selectedGuestId !== null && state.phase === 'OPERATION' && <GuestInspector entityId={state.selectedGuestId} />}
         {state.selectedItemId !== null && <ItemInspector itemId={state.selectedItemId} />}
 
         {state.phase === 'SETUP' && (
