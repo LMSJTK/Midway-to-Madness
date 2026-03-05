@@ -73,6 +73,7 @@ export class StateManager {
       sanitation: 0,
     } as Staff,
     placedItems: [] as PlacedItem[],
+    priceOverrides: {} as Record<string, number>,
     selectedGuestId: null as number | null,
     selectedItemId: null as string | null,
     stats: {
@@ -108,6 +109,16 @@ export class StateManager {
     this.notify();
   }
 
+  setGlobalPrice(itemType: string, price: number) {
+    const clampedPrice = Math.max(0, price);
+    this.state.priceOverrides = { ...this.state.priceOverrides, [itemType]: clampedPrice };
+    // Update all existing placed items of this type
+    this.state.placedItems = this.state.placedItems.map(item =>
+      item.type === itemType ? { ...item, ticketPrice: clampedPrice } : item
+    );
+    this.notify();
+  }
+
   placeItem(itemType: string, x: number, y: number): boolean {
     const def = ITEM_DEFINITIONS[itemType];
     if (!def) return false;
@@ -132,7 +143,7 @@ export class StateManager {
         height: def.height,
         built: true,
         buildTimeRemaining: 0,
-        ticketPrice: def.basePrice,
+        ticketPrice: this.state.priceOverrides[itemType] ?? def.basePrice,
         basePrice: def.basePrice,
         excitement: def.excitement || 0,
         capacity: def.capacity || 0,
