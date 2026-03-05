@@ -77,14 +77,15 @@ export const assetsApi = {
 
 // AI Generation
 export const generateApi = {
-  generate(description: string, category: string, assetId: string): Promise<{
+  generate(description: string, category: string, assetId: string, gridW = 1, gridH = 1): Promise<{
     prompt: string;
     imagePath: string;
     model: string;
+    size: { width: number; height: number };
   }> {
     return request('/generate', {
       method: 'POST',
-      body: JSON.stringify({ description, category, assetId }),
+      body: JSON.stringify({ description, category, assetId, gridW, gridH }),
     });
   },
 };
