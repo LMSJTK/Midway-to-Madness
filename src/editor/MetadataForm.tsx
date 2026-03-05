@@ -124,6 +124,34 @@ export function MetadataForm({ asset, onAssetUpdated }: Props) {
         </label>
       </div>
 
+      {/* Game stats */}
+      <div className="border-t border-zinc-700 pt-2">
+        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wide mb-2">Game Stats</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {([
+            ['prestige', 'Prestige', 'number'],
+            ['value', 'Value', 'number'],
+            ['item_cost', 'Cost', 'number'],
+            ['base_price', 'Base Price', 'number'],
+            ['unlock_day', 'Unlock Day', 'number'],
+            ['unlock_location', 'Unlock Location', 'text'],
+            ['capacity', 'Capacity', 'number'],
+            ['duration', 'Duration', 'number'],
+            ['travel_weight', 'Travel Weight', 'number'],
+          ] as const).map(([field, label, type]) => (
+            <label key={field} className="flex flex-col gap-0.5">
+              <span className="text-xs text-zinc-500">{label}</span>
+              <input
+                type={type}
+                value={asset[field] ?? ''}
+                onChange={e => handleFieldChange(field, type === 'number' ? (e.target.value === '' ? null : Number(e.target.value)) : (e.target.value || null))}
+                className="bg-zinc-700 text-white text-xs rounded px-2 py-1 outline-none focus:ring-1 focus:ring-amber-500"
+              />
+            </label>
+          ))}
+        </div>
+      </div>
+
       {/* State workflow buttons */}
       <div className="flex gap-2">
         {asset.state === 'draft' && (

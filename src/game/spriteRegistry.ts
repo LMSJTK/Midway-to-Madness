@@ -1,7 +1,11 @@
 /**
  * Runtime sprite registry — loads asset manifest and provides sprite lookups
  * for the render loop in engine.ts. Falls back gracefully when no sprite exists.
+ * Also registers manifest entries as ITEM_DEFINITIONS so editor-created items
+ * are available in the game at runtime.
  */
+
+import { registerItem, ITEM_DEFINITIONS, CATEGORY_DEFAULTS, ItemCategory } from './items';
 
 export interface SpriteAsset {
   image: HTMLImageElement;
@@ -12,12 +16,26 @@ export interface SpriteAsset {
   loaded: boolean;
 }
 
+export interface ManifestGameStats {
+  name: string;
+  prestige: number;
+  value: number;
+  cost: number;
+  basePrice: number;
+  unlockDay: number;
+  unlockLocation: string | null;
+  capacity: number | null;
+  duration: number | null;
+  travelWeight: number;
+}
+
 export interface ManifestEntry {
   path: string;
   anchor: { x: number; y: number };
   footprint: { w: number; h: number };
   entityType: string;
   slot: string;
+  gameStats?: ManifestGameStats;
 }
 
 export type AssetManifest = Record<string, ManifestEntry>;
@@ -70,6 +88,36 @@ class SpriteRegistry {
       });
 
       await Promise.all(loadPromises);
+
+      // Register manifest entries as ITEM_DEFINITIONS (only base_idle slots with gameStats)
+      for (const [id, entry] of Object.entries(manifest)) {
+        if (entry.slot !== 'base_idle' || !entry.gameStats || !entry.entityType) continue;
+        // Don't overwrite hardcoded definitions
+        if (ITEM_DEFINITIONS[id]) continue;
+
+        const category = entry.entityType as ItemCategory;
+        const catDefaults = CATEGORY_DEFAULTS[category];
+        const gs = entry.gameStats;
+
+        registerItem({
+          id,
+          category,
+          name: gs.name,
+          basePrice: gs.basePrice,
+          cost: gs.cost,
+          width: entry.footprint.w * 50,
+          height: entry.footprint.h * 50,
+          color: catDefaults?.color ?? '#fff',
+          prestige: gs.prestige,
+          value: gs.value,
+          travelWeight: gs.travelWeight,
+          unlockDay: gs.unlockDay,
+          unlockLocation: gs.unlockLocation ?? undefined,
+          capacity: gs.capacity ?? undefined,
+          duration: gs.duration ?? undefined,
+        });
+      }
+
       this.loaded = true;
       console.log(`Sprite registry loaded: ${this.assets.size} assets`);
     } catch {

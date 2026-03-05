@@ -56,6 +56,15 @@ router.post('/', (req, res) => {
     entity_type: asset.entity_type || null,
     slot: asset.slot || 'base_idle',
     image_path: asset.image_path || null,
+    prestige: asset.prestige ?? 10,
+    value: asset.value ?? 20,
+    item_cost: asset.item_cost ?? 500,
+    base_price: asset.base_price ?? 5,
+    unlock_day: asset.unlock_day ?? 0,
+    unlock_location: asset.unlock_location || null,
+    capacity: asset.capacity ?? null,
+    duration: asset.duration ?? null,
+    travel_weight: asset.travel_weight ?? 1,
   });
 
   const created = queries.getById.get(asset.id) as AssetRow;

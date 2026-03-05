@@ -1,5 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { gameStateManager, LOCATIONS, Location, Staff } from '../game/gameState';
+import { ITEM_DEFINITIONS, ItemCategory, CATEGORY_DEFAULTS, getItemsByCategory } from '../game/items';
+
+const CATEGORY_ORDER: ItemCategory[] = ['kiddie', 'major', 'spectacular', 'food', 'bathroom', 'gameStall', 'shop', 'performance'];
+const CATEGORY_LABELS: Record<ItemCategory, string> = {
+  kiddie: 'Kiddie Rides',
+  major: 'Major Rides',
+  spectacular: 'Spectacular',
+  food: 'Food',
+  bathroom: 'Bathrooms',
+  gameStall: 'Game Stalls',
+  shop: 'Shops',
+  performance: 'Performances',
+};
 
 export function MapView() {
   const [state, setState] = useState(gameStateManager.state);
@@ -22,13 +35,15 @@ export function MapView() {
     }
   };
 
-  const handleBuy = (type: keyof typeof state.inventory, cost: number) => {
-    if (state.money >= cost) {
+  const handleBuy = (itemId: string) => {
+    const def = ITEM_DEFINITIONS[itemId];
+    if (!def) return;
+    if (state.money >= def.cost) {
       gameStateManager.update({
-        money: state.money - cost,
+        money: state.money - def.cost,
         inventory: {
           ...state.inventory,
-          [type]: state.inventory[type] + 1
+          [itemId]: (state.inventory[itemId] || 0) + 1
         }
       });
     }
@@ -76,8 +91,8 @@ export function MapView() {
               onClick={() => handleSelectLocation(loc)}
               disabled={state.money < loc.fee}
               className={`w-full py-3 rounded-lg font-semibold transition-colors ${
-                state.money >= loc.fee 
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white' 
+                state.money >= loc.fee
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
                   : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
               }`}
             >
@@ -89,37 +104,39 @@ export function MapView() {
 
       <div className="mt-12 bg-zinc-900 border border-zinc-700 rounded-xl p-6 shadow-lg w-full max-w-5xl">
         <h2 className="text-2xl font-bold text-emerald-400 mb-4">Fleet Management & Upgrades</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[
-            { id: 'kiddieRides', name: 'Kiddie Ride', cost: 2000, desc: 'Low capacity, low excitement.' },
-            { id: 'majorRides', name: 'Major Ride', cost: 5000, desc: 'Medium capacity, good excitement.' },
-            { id: 'spectacularRides', name: 'Spectacular', cost: 15000, desc: 'High capacity, massive draw.' },
-            { id: 'foodStalls', name: 'Food Stall', cost: 1000, desc: 'Satisfies hunger, high margin.' },
-            { id: 'bathrooms', name: 'Bathroom', cost: 500, desc: 'Satisfies bladder needs.' },
-            { id: 'gameStalls', name: 'Game Stall', cost: 1200, desc: 'Quick fun, small excitement boost.' },
-            { id: 'shops', name: 'Gift Shop', cost: 2000, desc: 'Sells souvenirs. Stock-based.' },
-            { id: 'performances', name: 'Live Show', cost: 6000, desc: 'High-capacity entertainment stage.' },
-          ].map((item) => (
-            <div key={item.id} className="bg-zinc-800 p-4 rounded-lg border border-zinc-700 flex flex-col justify-between">
-              <div>
-                <h3 className="font-bold text-lg">{item.name}</h3>
-                <p className="text-xs text-zinc-400 mt-1 mb-2">{item.desc}</p>
-                <div className="text-sm mb-4">
-                  Owned: <span className="font-mono text-emerald-400">{state.inventory[item.id as keyof typeof state.inventory]}</span>
-                </div>
+        {CATEGORY_ORDER.map(cat => {
+          const items = getItemsByCategory(cat).filter(def => gameStateManager.isItemUnlocked(def.id));
+          if (items.length === 0) return null;
+          return (
+            <div key={cat} className="mb-6">
+              <h3 className="text-lg font-bold mb-3" style={{ color: CATEGORY_DEFAULTS[cat].color }}>
+                {CATEGORY_LABELS[cat]}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {items.map(def => (
+                  <div key={def.id} className="bg-zinc-800 p-4 rounded-lg border border-zinc-700 flex flex-col justify-between">
+                    <div>
+                      <h3 className="font-bold text-lg">{def.name}</h3>
+                      <p className="text-xs text-zinc-400 mt-1 mb-1">Prestige: {def.prestige} | Value: {def.value}</p>
+                      <div className="text-sm mb-4">
+                        Owned: <span className="font-mono text-emerald-400">{state.inventory[def.id] || 0}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleBuy(def.id)}
+                      disabled={state.money < def.cost}
+                      className={`w-full py-2 rounded text-sm font-semibold transition-colors ${
+                        state.money >= def.cost ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
+                      }`}
+                    >
+                      Buy (${def.cost})
+                    </button>
+                  </div>
+                ))}
               </div>
-              <button
-                onClick={() => handleBuy(item.id as keyof typeof state.inventory, item.cost)}
-                disabled={state.money < item.cost}
-                className={`w-full py-2 rounded text-sm font-semibold transition-colors ${
-                  state.money >= item.cost ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
-                }`}
-              >
-                Buy (${item.cost})
-              </button>
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
       <div className="mt-6 bg-zinc-900 border border-zinc-700 rounded-xl p-6 shadow-lg w-full max-w-5xl">

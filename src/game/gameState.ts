@@ -1,4 +1,4 @@
-import { ITEM_DEFINITIONS } from './items';
+import { ITEM_DEFINITIONS, STOCK_CATEGORIES } from './items';
 
 export type Phase = 'MAP' | 'BIDDING' | 'SETUP' | 'OPERATION' | 'TEARDOWN' | 'SUMMARY';
 
@@ -9,7 +9,7 @@ export interface Location {
   distance: number;
   fee: number;
   expectedGuests: number;
-  revenueShare: number; // e.g., 0.2 means 20% to city
+  revenueShare: number;
 }
 
 export const LOCATIONS: Location[] = [
@@ -18,17 +18,6 @@ export const LOCATIONS: Location[] = [
   { id: 'loc3', name: 'State Expo', type: 'State', distance: 400, fee: 8000, expectedGuests: 3000, revenueShare: 0.3 },
 ];
 
-export interface Inventory {
-  kiddieRides: number;
-  majorRides: number;
-  spectacularRides: number;
-  foodStalls: number;
-  bathrooms: number;
-  gameStalls: number;
-  shops: number;
-  performances: number;
-}
-
 export interface Staff {
   maintenance: number;
   sanitation: number;
@@ -36,7 +25,8 @@ export interface Staff {
 
 export interface PlacedItem {
   id: string;
-  type: string;
+  itemDefId: string;     // key into ITEM_DEFINITIONS
+  type: string;          // category, kept for quick behavior checks
   x: number;
   y: number;
   width: number;
@@ -61,19 +51,18 @@ export class StateManager {
   public state = {
     money: 15000,
     day: 1,
-    time: 8, // 8.0 to 22.0 (8 AM to 10 PM)
+    time: 8,
     phase: 'MAP' as Phase,
     currentLocation: null as Location | null,
+    // Dynamic inventory: keys are item definition IDs, values are counts
     inventory: {
-      kiddieRides: 2,
-      majorRides: 1,
-      spectacularRides: 0,
-      foodStalls: 2,
-      bathrooms: 1,
-      gameStalls: 0,
-      shops: 0,
-      performances: 0,
-    } as Inventory,
+      teacups: 1,
+      bumper_cars: 1,
+      scrambler: 1,
+      hot_dog_stand: 2,
+      porta_potty: 1,
+    } as Record<string, number>,
+    visitedLocations: [] as string[],
     staff: {
       maintenance: 0,
       sanitation: 0,
@@ -115,62 +104,63 @@ export class StateManager {
     this.notify();
   }
 
-  setGlobalPrice(itemType: string, price: number) {
+  /** Check if a specific item is unlocked based on day and visited locations */
+  isItemUnlocked(itemId: string): boolean {
+    const def = ITEM_DEFINITIONS[itemId];
+    if (!def) return false;
+    if (this.state.day < def.unlockDay) return false;
+    if (def.unlockLocation && !this.state.visitedLocations.includes(def.unlockLocation)) return false;
+    return true;
+  }
+
+  setGlobalPrice(itemDefId: string, price: number) {
     const clampedPrice = Math.max(0, price);
-    this.state.priceOverrides = { ...this.state.priceOverrides, [itemType]: clampedPrice };
-    // Update all existing placed items of this type
+    this.state.priceOverrides = { ...this.state.priceOverrides, [itemDefId]: clampedPrice };
     this.state.placedItems = this.state.placedItems.map(item =>
-      item.type === itemType ? { ...item, ticketPrice: clampedPrice } : item
+      item.itemDefId === itemDefId ? { ...item, ticketPrice: clampedPrice } : item
     );
     this.notify();
   }
 
-  placeItem(itemType: string, x: number, y: number): boolean {
-    const def = ITEM_DEFINITIONS[itemType];
+  placeItem(itemDefId: string, x: number, y: number): boolean {
+    const def = ITEM_DEFINITIONS[itemDefId];
     if (!def) return false;
 
-    // Check inventory
-    let inventoryKey: keyof Inventory | null = null;
-    if (itemType === 'kiddie') inventoryKey = 'kiddieRides';
-    if (itemType === 'major') inventoryKey = 'majorRides';
-    if (itemType === 'spectacular') inventoryKey = 'spectacularRides';
-    if (itemType === 'food') inventoryKey = 'foodStalls';
-    if (itemType === 'bathroom') inventoryKey = 'bathrooms';
-    if (itemType === 'gameStall') inventoryKey = 'gameStalls';
-    if (itemType === 'shop') inventoryKey = 'shops';
-    if (itemType === 'performance') inventoryKey = 'performances';
+    const count = this.state.inventory[itemDefId] || 0;
+    if (count <= 0) return false;
 
-    if (inventoryKey && this.state.inventory[inventoryKey] > 0) {
-      this.state.inventory[inventoryKey]--;
-      
-      const newItem: PlacedItem = {
-        id: Math.random().toString(36).substr(2, 9),
-        type: itemType,
-        x,
-        y,
-        width: def.width,
-        height: def.height,
-        built: true,
-        buildTimeRemaining: 0,
-        ticketPrice: this.state.priceOverrides[itemType] ?? def.basePrice,
-        basePrice: def.basePrice,
-        excitement: def.excitement || 0,
-        capacity: def.capacity || 0,
-        currentRiders: 0,
-        duration: def.duration || 0,
-        timer: 0,
-        revenueToday: 0,
-        customersToday: 0,
-        stock: (itemType === 'food' || itemType === 'shop') ? 100 : 0,
-        isBroken: false,
-        condition: 100,
-      };
-      
-      this.state.placedItems.push(newItem);
-      this.notify();
-      return true;
-    }
-    return false;
+    this.state.inventory = {
+      ...this.state.inventory,
+      [itemDefId]: count - 1,
+    };
+
+    const newItem: PlacedItem = {
+      id: Math.random().toString(36).substr(2, 9),
+      itemDefId,
+      type: def.category,
+      x,
+      y,
+      width: def.width,
+      height: def.height,
+      built: true,
+      buildTimeRemaining: 0,
+      ticketPrice: this.state.priceOverrides[itemDefId] ?? def.basePrice,
+      basePrice: def.basePrice,
+      excitement: def.value || 0,
+      capacity: def.capacity || 0,
+      currentRiders: 0,
+      duration: def.duration || 0,
+      timer: 0,
+      revenueToday: 0,
+      customersToday: 0,
+      stock: STOCK_CATEGORIES.includes(def.category) ? 100 : 0,
+      isBroken: false,
+      condition: 100,
+    };
+
+    this.state.placedItems.push(newItem);
+    this.notify();
+    return true;
   }
 }
 

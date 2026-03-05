@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { gameStateManager, PlacedItem } from '../../game/gameState';
+import { ITEM_DEFINITIONS } from '../../game/items';
 
 export function ItemInspector({ itemId }: { itemId: string }) {
   const [itemData, setItemData] = useState<PlacedItem | null>(null);
@@ -33,7 +34,7 @@ export function ItemInspector({ itemId }: { itemId: string }) {
   return (
     <div className="absolute bottom-8 right-8 bg-zinc-800/90 p-4 border border-zinc-700 rounded-xl shadow-xl backdrop-blur-sm w-64 z-10">
       <div className="flex justify-between items-center mb-2">
-        <h3 className="text-lg font-bold text-emerald-400 capitalize">{itemData.type}</h3>
+        <h3 className="text-lg font-bold text-emerald-400">{ITEM_DEFINITIONS[itemData.itemDefId]?.name ?? itemData.type}</h3>
         <button 
           onClick={() => gameStateManager.update({ selectedItemId: null })}
           className="text-zinc-500 hover:text-white"

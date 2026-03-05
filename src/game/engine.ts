@@ -2,6 +2,7 @@ import { World } from './ecs';
 import { gameStateManager } from './gameState';
 import { GuestSpawningSystem, GuestAISystem, MovementSystem, TimeSystem, StaffAISystem } from './systems';
 import { spriteRegistry } from './spriteRegistry';
+import { CATEGORY_DEFAULTS, ItemCategory, ITEM_DEFINITIONS } from './items';
 
 export const ISO_OFFSET_X = 400;
 export const ISO_OFFSET_Y = 100;
@@ -241,16 +242,9 @@ export class GameEngine {
            });
          } else {
            // Fallback to primitive colored blocks
-           let color = '#fff';
-           let z = 20;
-           if (item.type === 'kiddie') { color = '#f87171'; z = 30; }
-           else if (item.type === 'major') { color = '#fbbf24'; z = 50; }
-           else if (item.type === 'spectacular') { color = '#a78bfa'; z = 80; }
-           else if (item.type === 'food') { color = '#f472b6'; z = 20; }
-           else if (item.type === 'bathroom') { color = '#38bdf8'; z = 20; }
-           else if (item.type === 'gameStall') { color = '#fb923c'; z = 25; }
-           else if (item.type === 'shop') { color = '#f472b6'; z = 25; }
-           else if (item.type === 'performance') { color = '#facc15'; z = 40; }
+           const catDefaults = CATEGORY_DEFAULTS[item.type as ItemCategory];
+           let color = catDefaults?.color ?? '#fff';
+           let z = catDefaults?.z ?? 20;
 
            if (item.isBroken) {
              color = '#ef4444';
@@ -264,7 +258,7 @@ export class GameEngine {
              h: item.height,
              z: z,
              color,
-             label: item.isBroken ? 'BROKEN' : item.type,
+             label: item.isBroken ? 'BROKEN' : (ITEM_DEFINITIONS[item.itemDefId]?.name ?? item.type),
              subLabel: item.capacity > 0 && !item.isBroken ? `${item.currentRiders}/${item.capacity}` : undefined
            });
          }
