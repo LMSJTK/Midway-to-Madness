@@ -20,6 +20,7 @@ router.post('/', (_req, res) => {
     footprint: { w: number; h: number };
     entityType: string;
     slot: string;
+    gameCategory?: string;
     gameStats?: {
       name: string;
       prestige: number;
@@ -53,6 +54,7 @@ router.post('/', (_req, res) => {
       footprint: { w: asset.grid_w, h: asset.grid_h },
       entityType: asset.entity_type,
       slot: asset.slot,
+      gameCategory: asset.game_category || undefined,
       gameStats: {
         name: asset.name,
         prestige: asset.prestige,

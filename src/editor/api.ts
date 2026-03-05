@@ -32,6 +32,7 @@ export interface AssetRecord {
   duration: number | null;
   travel_weight: number;
   quality: number;
+  game_category: string | null;
 }
 
 const API_BASE = '/api';
