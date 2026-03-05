@@ -136,6 +136,9 @@ export function ParkView() {
       else if (item.type === 'spectacular') inventory.spectacularRides++;
       else if (item.type === 'food') inventory.foodStalls++;
       else if (item.type === 'bathroom') inventory.bathrooms++;
+      else if (item.type === 'gameStall') inventory.gameStalls++;
+      else if (item.type === 'shop') inventory.shops++;
+      else if (item.type === 'performance') inventory.performances++;
     });
     
     engine.world.clear(); // Remove all guests

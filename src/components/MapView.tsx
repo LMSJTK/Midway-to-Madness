@@ -89,13 +89,16 @@ export function MapView() {
 
       <div className="mt-12 bg-zinc-900 border border-zinc-700 rounded-xl p-6 shadow-lg w-full max-w-5xl">
         <h2 className="text-2xl font-bold text-emerald-400 mb-4">Fleet Management & Upgrades</h2>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[
             { id: 'kiddieRides', name: 'Kiddie Ride', cost: 2000, desc: 'Low capacity, low excitement.' },
             { id: 'majorRides', name: 'Major Ride', cost: 5000, desc: 'Medium capacity, good excitement.' },
             { id: 'spectacularRides', name: 'Spectacular', cost: 15000, desc: 'High capacity, massive draw.' },
             { id: 'foodStalls', name: 'Food Stall', cost: 1000, desc: 'Satisfies hunger, high margin.' },
             { id: 'bathrooms', name: 'Bathroom', cost: 500, desc: 'Satisfies bladder needs.' },
+            { id: 'gameStalls', name: 'Game Stall', cost: 1200, desc: 'Quick fun, small excitement boost.' },
+            { id: 'shops', name: 'Gift Shop', cost: 2000, desc: 'Sells souvenirs. Stock-based.' },
+            { id: 'performances', name: 'Live Show', cost: 6000, desc: 'High-capacity entertainment stage.' },
           ].map((item) => (
             <div key={item.id} className="bg-zinc-800 p-4 rounded-lg border border-zinc-700 flex flex-col justify-between">
               <div>

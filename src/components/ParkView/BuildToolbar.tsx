@@ -14,6 +14,9 @@ const ITEM_TYPES = [
   { key: 'spectacular', label: 'Spectacular Ride', inventoryKey: 'spectacularRides' as const },
   { key: 'food', label: 'Food Stall', inventoryKey: 'foodStalls' as const },
   { key: 'bathroom', label: 'Bathroom', inventoryKey: 'bathrooms' as const },
+  { key: 'gameStall', label: 'Game Stall', inventoryKey: 'gameStalls' as const },
+  { key: 'shop', label: 'Gift Shop', inventoryKey: 'shops' as const },
+  { key: 'performance', label: 'Live Show', inventoryKey: 'performances' as const },
 ];
 
 function PriceControl({ itemType }: { itemType: string }) {

@@ -24,6 +24,9 @@ export interface Inventory {
   spectacularRides: number;
   foodStalls: number;
   bathrooms: number;
+  gameStalls: number;
+  shops: number;
+  performances: number;
 }
 
 export interface Staff {
@@ -67,6 +70,9 @@ export class StateManager {
       spectacularRides: 0,
       foodStalls: 2,
       bathrooms: 1,
+      gameStalls: 0,
+      shops: 0,
+      performances: 0,
     } as Inventory,
     staff: {
       maintenance: 0,
@@ -130,6 +136,9 @@ export class StateManager {
     if (itemType === 'spectacular') inventoryKey = 'spectacularRides';
     if (itemType === 'food') inventoryKey = 'foodStalls';
     if (itemType === 'bathroom') inventoryKey = 'bathrooms';
+    if (itemType === 'gameStall') inventoryKey = 'gameStalls';
+    if (itemType === 'shop') inventoryKey = 'shops';
+    if (itemType === 'performance') inventoryKey = 'performances';
 
     if (inventoryKey && this.state.inventory[inventoryKey] > 0) {
       this.state.inventory[inventoryKey]--;
@@ -152,7 +161,7 @@ export class StateManager {
         timer: 0,
         revenueToday: 0,
         customersToday: 0,
-        stock: itemType === 'food' ? 100 : 0,
+        stock: (itemType === 'food' || itemType === 'shop') ? 100 : 0,
         isBroken: false,
         condition: 100,
       };

@@ -237,7 +237,7 @@ export class GameEngine {
              spriteImage: sprite.image,
              spriteAnchor: sprite.anchor,
              label: item.isBroken ? 'BROKEN' : undefined,
-             subLabel: item.type !== 'food' && item.type !== 'bathroom' && !item.isBroken ? `${item.currentRiders}/${item.capacity}` : undefined
+             subLabel: item.capacity > 0 && !item.isBroken ? `${item.currentRiders}/${item.capacity}` : undefined
            });
          } else {
            // Fallback to primitive colored blocks
@@ -248,6 +248,9 @@ export class GameEngine {
            else if (item.type === 'spectacular') { color = '#a78bfa'; z = 80; }
            else if (item.type === 'food') { color = '#f472b6'; z = 20; }
            else if (item.type === 'bathroom') { color = '#38bdf8'; z = 20; }
+           else if (item.type === 'gameStall') { color = '#fb923c'; z = 25; }
+           else if (item.type === 'shop') { color = '#f472b6'; z = 25; }
+           else if (item.type === 'performance') { color = '#facc15'; z = 40; }
 
            if (item.isBroken) {
              color = '#ef4444';
@@ -262,7 +265,7 @@ export class GameEngine {
              z: z,
              color,
              label: item.isBroken ? 'BROKEN' : item.type,
-             subLabel: item.type !== 'food' && item.type !== 'bathroom' && !item.isBroken ? `${item.currentRiders}/${item.capacity}` : undefined
+             subLabel: item.capacity > 0 && !item.isBroken ? `${item.currentRiders}/${item.capacity}` : undefined
            });
          }
        }

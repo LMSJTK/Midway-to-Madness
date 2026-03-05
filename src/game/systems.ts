@@ -116,14 +116,27 @@ export function GuestAISystem(world: World, dt: number) {
               const urgencyMultiplier = 1 + (guest.hunger / 100);
               score = guest.hunger * 2 * priceRatio - (dist * 0.05 * urgencyMultiplier) - item.ticketPrice;
               if (item.stock <= 0) score = -Infinity;
+            } else if (item.type === 'gameStall') {
+              // Game stalls give small excitement, guests play when not too excited already
+              const randomPreference = Math.random() * 15;
+              score = (80 - guest.excitement) * (item.excitement / 10) * priceRatio - (dist * 0.05) - item.ticketPrice + randomPreference;
+            } else if (item.type === 'shop') {
+              // Guests visit shops based on excitement (souvenirs after having fun) and remaining money
+              const shopInterest = guest.excitement * 0.3 + Math.random() * 15;
+              score = shopInterest * priceRatio - (dist * 0.05) - item.ticketPrice;
+              if (item.stock <= 0) score = -Infinity;
+            } else if (item.type === 'performance') {
+              // Performances are like rides: high excitement draw, capacity-limited
+              const randomPreference = Math.random() * 15;
+              score = (100 - guest.excitement) * (item.excitement / 10) * priceRatio - (dist * 0.05) - item.ticketPrice + randomPreference;
             } else {
-              // Add some randomness to preference so they don't all pick the exact same ride
+              // Rides: add some randomness to preference so they don't all pick the exact same ride
               const randomPreference = Math.random() * 20;
               score = (100 - guest.excitement) * (item.excitement / 10) * priceRatio - (dist * 0.05) - item.ticketPrice + randomPreference;
             }
-            
+
             if (guest.money < item.ticketPrice) score = -Infinity;
-            if (item.type !== 'food' && item.type !== 'bathroom' && item.currentRiders >= item.capacity) score = -Infinity; // Don't queue for full rides right now
+            if (item.capacity > 0 && item.currentRiders >= item.capacity) score = -Infinity;
             
             if (score > bestScore) {
               bestScore = score;
@@ -163,36 +176,46 @@ export function GuestAISystem(world: World, dt: number) {
       
       if (dist < 10) {
         // Arrived
-        const hasCapacity = target.type === 'food' || target.type === 'bathroom' || target.currentRiders < target.capacity;
-        if (guest.money >= target.ticketPrice && hasCapacity && (target.type !== 'food' || target.stock > 0) && !target.isBroken) {
+        const isInstant = target.type === 'food' || target.type === 'bathroom' || target.type === 'gameStall' || target.type === 'shop';
+        const hasCapacity = isInstant || target.currentRiders < target.capacity;
+        const hasStock = (target.type !== 'food' && target.type !== 'shop') || target.stock > 0;
+        if (guest.money >= target.ticketPrice && hasCapacity && hasStock && !target.isBroken) {
           guest.money -= target.ticketPrice;
           target.currentRiders++;
           target.customersToday++;
           target.revenueToday += target.ticketPrice;
-          if (target.type === 'food') target.stock--;
-          
+          if (target.type === 'food' || target.type === 'shop') target.stock--;
+
           // Update economy
           const netRevenue = target.ticketPrice * (1 - (state.currentLocation?.revenueShare || 0));
           state.stats.revenueToday += netRevenue;
           state.money += netRevenue;
-          
+
           if (target.type === 'food') {
             guest.state = 'eating';
             guest.timer = 5;
             guest.hunger = 0;
-            target.currentRiders--; // Food stalls process instantly
+            target.currentRiders--;
           } else if (target.type === 'bathroom') {
-            guest.state = 'eating'; // Reuse eating state for quick use
+            guest.state = 'eating';
             guest.timer = 2;
             guest.bladder = 0;
-            target.currentRiders--; // Bathrooms process instantly
-            
-            // Degrade bathroom condition
+            target.currentRiders--;
+
             target.condition -= 2;
             if (target.condition <= 0) {
               target.isBroken = true;
               target.condition = 0;
             }
+          } else if (target.type === 'gameStall') {
+            guest.state = 'eating'; // Reuse for quick interactions
+            guest.timer = 4;
+            guest.excitement += target.excitement;
+            target.currentRiders--;
+          } else if (target.type === 'shop') {
+            guest.state = 'eating';
+            guest.timer = 3;
+            target.currentRiders--;
           } else {
             guest.state = 'riding';
             guest.timer = target.duration;
