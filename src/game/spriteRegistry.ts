@@ -36,6 +36,7 @@ export interface ManifestEntry {
   footprint: { w: number; h: number };
   entityType: string;
   slot: string;
+  gameCategory?: string; // ItemCategory for behavior (kiddie, food, etc.)
   gameStats?: ManifestGameStats;
 }
 
@@ -93,15 +94,18 @@ class SpriteRegistry {
       // Register manifest entries as ITEM_DEFINITIONS (only base_idle slots with gameStats)
       for (const [id, entry] of Object.entries(manifest)) {
         if (entry.slot !== 'base_idle' || !entry.gameStats || !entry.entityType) continue;
-        // Don't overwrite hardcoded definitions
-        if (ITEM_DEFINITIONS[id]) continue;
+        // Don't overwrite hardcoded definitions — entity_type is the item def ID
+        const defId = entry.entityType;
+        if (ITEM_DEFINITIONS[defId]) continue;
 
-        const category = entry.entityType as ItemCategory;
+        // Use explicit gameCategory if set, fall back to entityType for older manifests
+        const category = (entry.gameCategory || entry.entityType) as ItemCategory;
         const catDefaults = CATEGORY_DEFAULTS[category];
         const gs = entry.gameStats;
+        if (!catDefaults) continue; // skip if category is not a valid ItemCategory
 
         registerItem({
-          id,
+          id: defId,
           category,
           name: gs.name,
           basePrice: gs.basePrice,

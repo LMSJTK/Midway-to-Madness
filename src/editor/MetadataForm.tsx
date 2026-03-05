@@ -16,6 +16,9 @@ const CATEGORY_LABELS: Record<ItemCategory, string> = {
 
 const SLOTS = ['base_idle', 'base_active', 'broken_state', 'base_dirty', 'icon_small'];
 
+// Special sentinel for the "new entity" option
+const NEW_ENTITY_SENTINEL = '__new__';
+
 interface Props {
   asset: AssetRecord | null;
   onAssetUpdated: (asset: AssetRecord) => void;
@@ -33,6 +36,10 @@ export function MetadataForm({ asset, onAssetUpdated }: Props) {
       </div>
     );
   }
+
+  // Determine if current entity_type is an existing ITEM_DEFINITION or a custom/new one
+  const isExistingEntity = asset.entity_type ? !!ITEM_DEFINITIONS[asset.entity_type] : false;
+  const isNewEntity = asset.entity_type && !isExistingEntity;
 
   async function handleStateChange(newState: string) {
     if (!asset) return;
@@ -60,6 +67,24 @@ export function MetadataForm({ asset, onAssetUpdated }: Props) {
     }
   }
 
+  async function handleEntityBindingChange(selectValue: string) {
+    if (!asset) return;
+    if (selectValue === NEW_ENTITY_SENTINEL) {
+      // Set entity_type to the asset's own ID (creates a new entity)
+      setSaving(true);
+      try {
+        const updated = await assetsApi.update(asset.id, { entity_type: asset.id });
+        onAssetUpdated(updated);
+      } catch (err: any) {
+        console.error('Failed to update:', err);
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      handleFieldChange('entity_type', selectValue || null);
+    }
+  }
+
   async function handleExport() {
     setExporting(true);
     setExportResult(null);
@@ -79,6 +104,10 @@ export function MetadataForm({ asset, onAssetUpdated }: Props) {
     approved: 'bg-emerald-600',
     deprecated: 'bg-red-800',
   };
+
+  // For the select dropdown: if the entity_type matches an existing def, show that value.
+  // If it's a new/custom entity, show the sentinel so we can display the custom UI.
+  const selectValue = !asset.entity_type ? '' : isExistingEntity ? asset.entity_type : NEW_ENTITY_SENTINEL;
 
   return (
     <div className="flex flex-col gap-3 p-4 bg-zinc-800 rounded-lg">
@@ -105,11 +134,12 @@ export function MetadataForm({ asset, onAssetUpdated }: Props) {
         <label className="flex flex-col gap-1">
           <span className="text-xs text-zinc-400">Entity Binding</span>
           <select
-            value={asset.entity_type || ''}
-            onChange={e => handleFieldChange('entity_type', e.target.value || null)}
+            value={selectValue}
+            onChange={e => handleEntityBindingChange(e.target.value)}
             className="bg-zinc-700 text-white text-sm rounded px-2 py-1.5"
           >
             <option value="">(none)</option>
+            <option value={NEW_ENTITY_SENTINEL}>+ New Entity (use asset ID)</option>
             {CATEGORY_ORDER.map(cat => {
               const items = Object.values(ITEM_DEFINITIONS).filter(d => d.category === cat);
               if (items.length === 0) return null;
@@ -135,6 +165,40 @@ export function MetadataForm({ asset, onAssetUpdated }: Props) {
           </select>
         </label>
       </div>
+
+      {/* Show custom entity ID when in "new entity" mode */}
+      {isNewEntity && (
+        <div className="bg-zinc-900 rounded p-2 text-xs space-y-2">
+          <div className="text-emerald-400">New entity: <strong>{asset.entity_type}</strong></div>
+          <label className="flex flex-col gap-1">
+            <span className="text-zinc-400">Entity ID</span>
+            <input
+              type="text"
+              value={asset.entity_type || ''}
+              onChange={e => handleFieldChange('entity_type', e.target.value || null)}
+              className="bg-zinc-700 text-white text-xs rounded px-2 py-1 outline-none focus:ring-1 focus:ring-emerald-500"
+              placeholder="my_custom_ride"
+            />
+          </label>
+        </div>
+      )}
+
+      {/* Game Category — required when entity is bound, determines behavior */}
+      {asset.entity_type && (
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-zinc-400">Game Category <span className="text-zinc-600">(determines behavior: rides, food, etc.)</span></span>
+          <select
+            value={asset.game_category || ''}
+            onChange={e => handleFieldChange('game_category', e.target.value || null)}
+            className="bg-zinc-700 text-white text-sm rounded px-2 py-1.5"
+          >
+            <option value="">(not set)</option>
+            {CATEGORY_ORDER.map(cat => (
+              <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
+            ))}
+          </select>
+        </label>
+      )}
 
       {/* Game stats */}
       <div className="border-t border-zinc-700 pt-2">

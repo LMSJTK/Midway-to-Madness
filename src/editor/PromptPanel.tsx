@@ -25,6 +25,8 @@ const CATEGORY_LABELS: Record<ItemCategory, string> = {
   performance: 'Performances',
 };
 
+const NEW_ENTITY_SENTINEL = '__new__';
+
 const SLOTS = ['base_idle', 'base_active', 'broken_state', 'base_dirty', 'icon_small'];
 
 interface Props {
@@ -36,7 +38,9 @@ export function PromptPanel({ onAssetCreated, currentAsset }: Props) {
   const [description, setDescription] = useState('');
   const [name, setName] = useState('');
   const [category, setCategory] = useState('stall');
+  const [entitySelectValue, setEntitySelectValue] = useState('');
   const [entityType, setEntityType] = useState('');
+  const [gameCategory, setGameCategory] = useState('');
   const [slot, setSlot] = useState('base_idle');
   const [gridW, setGridW] = useState(1);
   const [gridH, setGridH] = useState(1);
@@ -45,23 +49,37 @@ export function PromptPanel({ onAssetCreated, currentAsset }: Props) {
 
   const assetId = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+$/, '') || 'unnamed';
 
+  function handleEntitySelectChange(value: string) {
+    setEntitySelectValue(value);
+    if (value === NEW_ENTITY_SENTINEL) {
+      setEntityType(assetId);
+    } else {
+      setEntityType(value);
+      // Auto-set game category from existing definition
+      const def = ITEM_DEFINITIONS[value];
+      if (def) setGameCategory(def.category);
+    }
+  }
+
+  // Keep custom entity ID in sync with asset name
+  const effectiveEntityType = entitySelectValue === NEW_ENTITY_SENTINEL ? assetId : entityType;
+
   async function handleGenerate() {
     if (!description.trim() || !name.trim()) return;
     setGenerating(true);
     setError(null);
 
     try {
-      // Generate image
       const result = await generateApi.generate(description, category, assetId, gridW, gridH);
 
-      // Create asset record in DB
       const asset = await assetsApi.create({
         id: assetId,
         name: name.trim(),
         category,
         prompt: result.prompt,
         model: result.model,
-        entity_type: entityType || null,
+        entity_type: effectiveEntityType || null,
+        game_category: gameCategory || null,
         slot,
         grid_w: gridW,
         grid_h: gridH,
@@ -109,7 +127,7 @@ export function PromptPanel({ onAssetCreated, currentAsset }: Props) {
 
       <div className="grid grid-cols-2 gap-2">
         <label className="flex flex-col gap-1">
-          <span className="text-xs text-zinc-400">Category</span>
+          <span className="text-xs text-zinc-400">Asset Category</span>
           <select
             value={category}
             onChange={e => setCategory(e.target.value)}
@@ -122,11 +140,12 @@ export function PromptPanel({ onAssetCreated, currentAsset }: Props) {
         <label className="flex flex-col gap-1">
           <span className="text-xs text-zinc-400">Entity Binding</span>
           <select
-            value={entityType}
-            onChange={e => setEntityType(e.target.value)}
+            value={entitySelectValue}
+            onChange={e => handleEntitySelectChange(e.target.value)}
             className="bg-zinc-700 text-white text-sm rounded px-2 py-1.5"
           >
             <option value="">(none)</option>
+            <option value={NEW_ENTITY_SENTINEL}>+ New Entity (use asset ID)</option>
             {CATEGORY_ORDER.map(cat => {
               const items = Object.values(ITEM_DEFINITIONS).filter(d => d.category === cat);
               if (items.length === 0) return null;
@@ -141,6 +160,28 @@ export function PromptPanel({ onAssetCreated, currentAsset }: Props) {
           </select>
         </label>
       </div>
+
+      {entitySelectValue === NEW_ENTITY_SENTINEL && (
+        <div className="bg-zinc-900 rounded p-2 text-xs text-emerald-400">
+          New entity ID: <strong>{assetId}</strong>
+        </div>
+      )}
+
+      {effectiveEntityType && (
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-zinc-400">Game Category <span className="text-zinc-600">(behavior type)</span></span>
+          <select
+            value={gameCategory}
+            onChange={e => setGameCategory(e.target.value)}
+            className="bg-zinc-700 text-white text-sm rounded px-2 py-1.5"
+          >
+            <option value="">(not set)</option>
+            {CATEGORY_ORDER.map(cat => (
+              <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
+            ))}
+          </select>
+        </label>
+      )}
 
       <div className="grid grid-cols-3 gap-2">
         <label className="flex flex-col gap-1">
