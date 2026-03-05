@@ -8,6 +8,9 @@ const ENTITY_TYPES = [
   { value: 'spectacular', label: 'Spectacular Ride' },
   { value: 'food', label: 'Food Stall' },
   { value: 'bathroom', label: 'Bathroom' },
+  { value: 'gameStall', label: 'Game Stall' },
+  { value: 'shop', label: 'Gift Shop' },
+  { value: 'performance', label: 'Live Performance' },
 ];
 
 const SLOTS = ['base_idle', 'base_active', 'broken_state', 'base_dirty', 'icon_small'];
