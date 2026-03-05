@@ -5,6 +5,7 @@ POST /api/remove with image bytes -> returns PNG with alpha channel.
 
 from flask import Flask, request, Response
 from rembg import remove
+from PIL import Image
 import io
 
 app = Flask(__name__)
@@ -26,8 +27,14 @@ def health():
 
 
 if __name__ == "__main__":
-    # Pre-download the model on startup so the first request isn't slow
     print("Initializing rembg model...")
-    remove(b"")  # triggers model download
+    
+    # Create a dummy 1x1 valid image to trigger the model download safely
+    dummy_img = Image.new('RGB', (1, 1))
+    img_byte_arr = io.BytesIO()
+    dummy_img.save(img_byte_arr, format='PNG')
+    
+    remove(img_byte_arr.getvalue()) 
+    
     print("rembg ready")
     app.run(host="0.0.0.0", port=5000)
