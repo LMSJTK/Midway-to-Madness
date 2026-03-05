@@ -30,11 +30,17 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - REMBG_URL=http://rembg:5000
     depends_on:
-      - rembg
+      rembg:
+        condition: service_healthy
 
-  # Background removal service for stripping AI-generated backgrounds
+  # Background removal service — wraps rembg in a Flask HTTP server
   rembg:
-    image: danielgatis/rembg:latest
+    build: ./rembg
     ports:
       - "5000:5000"
-    command: s
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s

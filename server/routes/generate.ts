@@ -15,19 +15,22 @@ const SPRITES_DIR = path.resolve(__dirname, '..', '..', 'public', 'assets', 'spr
 const PROMPT_PREFIX = 'Isometric 2:1 dimetric projection, viewed from above-right, top-left lighting, carnival fairground style, transparent background, clean edges, vibrant colors';
 const PROMPT_SUFFIX = 'single isolated object, no text, no watermark, game asset sprite';
 
-// Target sprite sizes based on grid footprint and tile dimensions.
-// TILE_WIDTH=40, TILE_HEIGHT=20, so a 1x1 item (50x50 logical units) maps to ~80px wide sprite.
-// We use 2x multiplier for visual quality.
+// Target sprite sizes derived from actual isometric screen footprint.
+// toIso formula: screen_x = (x - y), screen_y = (x + y) * 0.5
+// A 50x50 logical item → diamond 100px wide, 50px tall + z-height for blocks.
+// Food stall (z=20): ~100x70px. Spectacular (z=80): ~200x180px.
+// We add padding so sprites have room for visual detail above the base.
 const SPRITE_SIZE_MAP: Record<string, { width: number; height: number }> = {
-  '1x1': { width: 160, height: 160 },
-  '2x2': { width: 240, height: 240 },
-  '3x3': { width: 320, height: 320 },
+  '1x1': { width: 100, height: 100 },   // stalls, bathrooms, kiddie rides (50x50 logical)
+  '2x2': { width: 150, height: 150 },   // major attractions (75x75 logical)
+  '3x3': { width: 200, height: 200 },   // spectacular rides (100x100 logical)
 };
 
 const REMBG_URL = process.env.REMBG_URL || 'http://rembg:5000';
 
-/** Remove background via the rembg service. Returns the processed PNG buffer. */
+/** Remove background via the rembg service. Returns a PNG with alpha channel. */
 async function removeBackground(imageBuffer: Buffer): Promise<Buffer> {
+  console.log(`Calling rembg at ${REMBG_URL}/api/remove (${imageBuffer.length} bytes)...`);
   try {
     const response = await fetch(`${REMBG_URL}/api/remove`, {
       method: 'POST',
@@ -36,12 +39,15 @@ async function removeBackground(imageBuffer: Buffer): Promise<Buffer> {
     });
 
     if (!response.ok) {
-      console.warn(`rembg returned ${response.status}, skipping background removal`);
+      const errText = await response.text().catch(() => '');
+      console.warn(`rembg returned ${response.status}: ${errText}, skipping background removal`);
       return imageBuffer;
     }
 
     const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
+    const result = Buffer.from(arrayBuffer);
+    console.log(`rembg success: ${imageBuffer.length} -> ${result.length} bytes`);
+    return result;
   } catch (err) {
     console.warn('rembg service unavailable, skipping background removal:', (err as Error).message);
     return imageBuffer;
