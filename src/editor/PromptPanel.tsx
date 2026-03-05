@@ -48,7 +48,7 @@ export function PromptPanel({ onAssetCreated, currentAsset }: Props) {
 
     try {
       // Generate image
-      const result = await generateApi.generate(description, category, assetId);
+      const result = await generateApi.generate(description, category, assetId, gridW, gridH);
 
       // Create asset record in DB
       const asset = await assetsApi.create({

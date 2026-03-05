@@ -28,3 +28,13 @@ services:
       - /app/node_modules
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - REMBG_URL=http://rembg:5000
+    depends_on:
+      - rembg
+
+  # Background removal service for stripping AI-generated backgrounds
+  rembg:
+    image: danielgatis/rembg:latest
+    ports:
+      - "5000:5000"
+    command: s
