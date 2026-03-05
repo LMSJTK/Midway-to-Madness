@@ -9,9 +9,25 @@ import { MapView } from './components/MapView';
 import { BiddingView } from './components/BiddingView';
 import { ParkView } from './components/ParkView';
 import { SummaryView } from './components/SummaryView';
+import { EditorView } from './editor/EditorView';
 import { gameStateManager } from './game/gameState';
 
+function useIsEditorRoute() {
+  const [isEditor, setIsEditor] = useState(
+    () => window.location.hash === '#editor' || new URLSearchParams(window.location.search).has('editor')
+  );
+
+  useEffect(() => {
+    const onHashChange = () => setIsEditor(window.location.hash === '#editor');
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  return isEditor;
+}
+
 export default function App() {
+  const isEditor = useIsEditorRoute();
   const [phase, setPhase] = useState(gameStateManager.state.phase);
 
   useEffect(() => {
@@ -20,6 +36,10 @@ export default function App() {
     });
     return unsubscribe;
   }, []);
+
+  if (isEditor) {
+    return <EditorView />;
+  }
 
   return (
     <div className="font-sans bg-zinc-900 min-h-screen text-white">

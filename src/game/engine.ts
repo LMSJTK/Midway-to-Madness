@@ -1,6 +1,7 @@
 import { World } from './ecs';
 import { gameStateManager } from './gameState';
 import { GuestSpawningSystem, GuestAISystem, MovementSystem, TimeSystem, StaffAISystem } from './systems';
+import { spriteRegistry } from './spriteRegistry';
 
 export const ISO_OFFSET_X = 400;
 export const ISO_OFFSET_Y = 100;
@@ -105,8 +106,14 @@ function drawIsoGuest(ctx: CanvasRenderingContext2D, x: number, y: number, color
   ctx.stroke();
 }
 
+function drawSpriteIso(ctx: CanvasRenderingContext2D, image: HTMLImageElement,
+                       x: number, y: number, anchor: { x: number; y: number }) {
+  const p = toIso(x, y);
+  ctx.drawImage(image, p.x - anchor.x, p.y - anchor.y);
+}
+
 interface RenderItem {
-  type: 'block' | 'guest' | 'flat';
+  type: 'block' | 'guest' | 'flat' | 'sprite';
   x: number;
   y: number;
   w?: number;
@@ -116,6 +123,8 @@ interface RenderItem {
   label?: string;
   subLabel?: string;
   size?: number;
+  spriteImage?: HTMLImageElement;
+  spriteAnchor?: { x: number; y: number };
 }
 
 export class GameEngine {
@@ -134,8 +143,9 @@ export class GameEngine {
     this.world = new World();
   }
 
-  start() {
+  async start() {
     if (this.isRunning) return;
+    await spriteRegistry.load();
     this.isRunning = true;
     this.lastTime = performance.now();
     this.loop(this.lastTime);
@@ -213,29 +223,48 @@ export class GameEngine {
 
        // Add placed items
        for (const item of state.placedItems) {
-         let color = '#fff';
-         let z = 20;
-         if (item.type === 'kiddie') { color = '#f87171'; z = 30; }
-         else if (item.type === 'major') { color = '#fbbf24'; z = 50; }
-         else if (item.type === 'spectacular') { color = '#a78bfa'; z = 80; }
-         else if (item.type === 'food') { color = '#f472b6'; z = 20; }
-         else if (item.type === 'bathroom') { color = '#38bdf8'; z = 20; }
-         
-         if (item.isBroken) {
-           color = '#ef4444'; // Red when broken
+         const slot = item.isBroken ? 'broken_state' : 'base_idle';
+         const sprite = spriteRegistry.get(item.type, slot);
+
+         if (sprite) {
+           renderItems.push({
+             type: 'sprite',
+             x: item.x,
+             y: item.y,
+             w: item.width,
+             h: item.height,
+             color: '',
+             spriteImage: sprite.image,
+             spriteAnchor: sprite.anchor,
+             label: item.isBroken ? 'BROKEN' : undefined,
+             subLabel: item.type !== 'food' && item.type !== 'bathroom' && !item.isBroken ? `${item.currentRiders}/${item.capacity}` : undefined
+           });
+         } else {
+           // Fallback to primitive colored blocks
+           let color = '#fff';
+           let z = 20;
+           if (item.type === 'kiddie') { color = '#f87171'; z = 30; }
+           else if (item.type === 'major') { color = '#fbbf24'; z = 50; }
+           else if (item.type === 'spectacular') { color = '#a78bfa'; z = 80; }
+           else if (item.type === 'food') { color = '#f472b6'; z = 20; }
+           else if (item.type === 'bathroom') { color = '#38bdf8'; z = 20; }
+
+           if (item.isBroken) {
+             color = '#ef4444';
+           }
+
+           renderItems.push({
+             type: 'block',
+             x: item.x,
+             y: item.y,
+             w: item.width,
+             h: item.height,
+             z: z,
+             color,
+             label: item.isBroken ? 'BROKEN' : item.type,
+             subLabel: item.type !== 'food' && item.type !== 'bathroom' && !item.isBroken ? `${item.currentRiders}/${item.capacity}` : undefined
+           });
          }
-         
-         renderItems.push({
-           type: 'block',
-           x: item.x,
-           y: item.y,
-           w: item.width,
-           h: item.height,
-           z: z,
-           color,
-           label: item.isBroken ? 'BROKEN' : item.type,
-           subLabel: item.type !== 'food' && item.type !== 'bathroom' && !item.isBroken ? `${item.currentRiders}/${item.capacity}` : undefined
-         });
        }
 
        // Add guests, staff, and trash
@@ -275,9 +304,26 @@ export class GameEngine {
        for (const item of renderItems) {
          if (item.type === 'flat') {
            drawIsoFlat(this.ctx, item.x, item.y, item.w!, item.h!, item.color);
+         } else if (item.type === 'sprite') {
+           drawSpriteIso(this.ctx, item.spriteImage!, item.x, item.y, item.spriteAnchor!);
+
+           // Draw labels above sprite
+           if (item.label || item.subLabel) {
+             const topCenter = toIso(item.x + item.w! / 2, item.y + item.h! / 2);
+             this.ctx.fillStyle = '#000';
+             this.ctx.font = '10px sans-serif';
+             this.ctx.textAlign = 'center';
+             if (item.label) {
+               this.ctx.fillText(item.label.toUpperCase(), topCenter.x, topCenter.y - (item.spriteImage!.height / 2) - 5);
+             }
+             if (item.subLabel) {
+               this.ctx.fillText(item.subLabel, topCenter.x, topCenter.y - (item.spriteImage!.height / 2) + 5);
+             }
+             this.ctx.textAlign = 'left';
+           }
          } else if (item.type === 'block') {
            drawIsoBlock(this.ctx, item.x, item.y, item.w!, item.h!, item.z!, item.color);
-           
+
            // Draw labels on top face
            if (item.label) {
              const topCenter = toIso(item.x + item.w! / 2, item.y + item.h! / 2);
