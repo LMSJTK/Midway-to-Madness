@@ -9,7 +9,7 @@ import { ITEM_DEFINITIONS } from '../game/items';
 export function ParkView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [state, setState] = useState(gameStateManager.state);
-  const [selectedTool, setSelectedTool] = useState<'kiddie' | 'major' | 'spectacular' | 'food' | 'bathroom' | null>(null);
+  const [selectedTool, setSelectedTool] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = gameStateManager.subscribe(() => {
@@ -128,17 +128,10 @@ export function ParkView() {
   };
 
   const handleTeardown = () => {
-    // Return items to inventory
+    // Return items to inventory using their specific definition ID
     const inventory = { ...state.inventory };
     state.placedItems.forEach(item => {
-      if (item.type === 'kiddie') inventory.kiddieRides++;
-      else if (item.type === 'major') inventory.majorRides++;
-      else if (item.type === 'spectacular') inventory.spectacularRides++;
-      else if (item.type === 'food') inventory.foodStalls++;
-      else if (item.type === 'bathroom') inventory.bathrooms++;
-      else if (item.type === 'gameStall') inventory.gameStalls++;
-      else if (item.type === 'shop') inventory.shops++;
-      else if (item.type === 'performance') inventory.performances++;
+      inventory[item.itemDefId] = (inventory[item.itemDefId] || 0) + 1;
     });
     
     engine.world.clear(); // Remove all guests

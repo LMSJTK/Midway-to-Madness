@@ -35,6 +35,22 @@ db.exec(`
   );
 `);
 
+// Add game-stat columns for named buildings (safe to re-run on existing DBs)
+const gameStatCols: [string, string][] = [
+  ['prestige',       'INTEGER NOT NULL DEFAULT 10'],
+  ['value',          'INTEGER NOT NULL DEFAULT 20'],
+  ['item_cost',      'INTEGER NOT NULL DEFAULT 500'],
+  ['base_price',     'INTEGER NOT NULL DEFAULT 5'],
+  ['unlock_day',     'INTEGER NOT NULL DEFAULT 0'],
+  ['unlock_location','TEXT'],
+  ['capacity',       'INTEGER'],
+  ['duration',       'INTEGER'],
+  ['travel_weight',  'INTEGER NOT NULL DEFAULT 1'],
+];
+for (const [col, def] of gameStatCols) {
+  try { db.exec(`ALTER TABLE assets ADD COLUMN ${col} ${def}`); } catch { /* already exists */ }
+}
+
 export interface AssetRow {
   id: string;
   name: string;
@@ -53,6 +69,16 @@ export interface AssetRow {
   image_path: string | null;
   created_at: string;
   updated_at: string;
+  // Game stats for named buildings
+  prestige: number;
+  value: number;
+  item_cost: number;
+  base_price: number;
+  unlock_day: number;
+  unlock_location: string | null;
+  capacity: number | null;
+  duration: number | null;
+  travel_weight: number;
 }
 
 export const queries = {
@@ -64,9 +90,13 @@ export const queries = {
 
   insert: db.prepare(`
     INSERT INTO assets (id, name, category, state, prompt, negative_prompt, model, seed,
-                        grid_w, grid_h, anchor_x, anchor_y, entity_type, slot, image_path)
+                        grid_w, grid_h, anchor_x, anchor_y, entity_type, slot, image_path,
+                        prestige, value, item_cost, base_price, unlock_day, unlock_location,
+                        capacity, duration, travel_weight)
     VALUES (@id, @name, @category, @state, @prompt, @negative_prompt, @model, @seed,
-            @grid_w, @grid_h, @anchor_x, @anchor_y, @entity_type, @slot, @image_path)
+            @grid_w, @grid_h, @anchor_x, @anchor_y, @entity_type, @slot, @image_path,
+            @prestige, @value, @item_cost, @base_price, @unlock_day, @unlock_location,
+            @capacity, @duration, @travel_weight)
   `),
 
   update: db.prepare(`
@@ -75,6 +105,9 @@ export const queries = {
       prompt = @prompt, negative_prompt = @negative_prompt, model = @model, seed = @seed,
       grid_w = @grid_w, grid_h = @grid_h, anchor_x = @anchor_x, anchor_y = @anchor_y,
       entity_type = @entity_type, slot = @slot, image_path = @image_path,
+      prestige = @prestige, value = @value, item_cost = @item_cost, base_price = @base_price,
+      unlock_day = @unlock_day, unlock_location = @unlock_location,
+      capacity = @capacity, duration = @duration, travel_weight = @travel_weight,
       updated_at = datetime('now')
     WHERE id = @id
   `),

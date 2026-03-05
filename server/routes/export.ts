@@ -20,6 +20,18 @@ router.post('/', (_req, res) => {
     footprint: { w: number; h: number };
     entityType: string;
     slot: string;
+    gameStats?: {
+      name: string;
+      prestige: number;
+      value: number;
+      cost: number;
+      basePrice: number;
+      unlockDay: number;
+      unlockLocation: string | null;
+      capacity: number | null;
+      duration: number | null;
+      travelWeight: number;
+    };
   }> = {};
 
   const warnings: string[] = [];
@@ -40,6 +52,18 @@ router.post('/', (_req, res) => {
       footprint: { w: asset.grid_w, h: asset.grid_h },
       entityType: asset.entity_type,
       slot: asset.slot,
+      gameStats: {
+        name: asset.name,
+        prestige: asset.prestige,
+        value: asset.value,
+        cost: asset.item_cost,
+        basePrice: asset.base_price,
+        unlockDay: asset.unlock_day,
+        unlockLocation: asset.unlock_location,
+        capacity: asset.capacity,
+        duration: asset.duration,
+        travelWeight: asset.travel_weight,
+      },
     };
   }
 

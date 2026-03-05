@@ -1,5 +1,6 @@
 import { World, Entity } from './ecs';
 import { gameStateManager } from './gameState';
+import { INSTANT_CATEGORIES, STOCK_CATEGORIES, ITEM_DEFINITIONS, ItemCategory } from './items';
 
 export interface Position { x: number; y: number; }
 export interface Velocity { vx: number; vy: number; }
@@ -176,15 +177,16 @@ export function GuestAISystem(world: World, dt: number) {
       
       if (dist < 10) {
         // Arrived
-        const isInstant = target.type === 'food' || target.type === 'bathroom' || target.type === 'gameStall' || target.type === 'shop';
+        const category = target.type as ItemCategory;
+        const isInstant = INSTANT_CATEGORIES.includes(category);
         const hasCapacity = isInstant || target.currentRiders < target.capacity;
-        const hasStock = (target.type !== 'food' && target.type !== 'shop') || target.stock > 0;
+        const hasStock = !STOCK_CATEGORIES.includes(category) || target.stock > 0;
         if (guest.money >= target.ticketPrice && hasCapacity && hasStock && !target.isBroken) {
           guest.money -= target.ticketPrice;
           target.currentRiders++;
           target.customersToday++;
           target.revenueToday += target.ticketPrice;
-          if (target.type === 'food' || target.type === 'shop') target.stock--;
+          if (STOCK_CATEGORIES.includes(category)) target.stock--;
 
           // Update economy
           const netRevenue = target.ticketPrice * (1 - (state.currentLocation?.revenueShare || 0));
@@ -245,7 +247,7 @@ export function GuestAISystem(world: World, dt: number) {
         guest.state = 'wandering';
         guest.timer = 0;
         const target = state.placedItems.find(i => i.id === guest.targetId);
-        if (target && target.type !== 'food' && target.type !== 'bathroom') {
+        if (target && !INSTANT_CATEGORIES.includes(target.type as ItemCategory)) {
           target.currentRiders = Math.max(0, target.currentRiders - 1);
         }
         guest.targetId = null;

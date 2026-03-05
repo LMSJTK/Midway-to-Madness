@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
 import { gameStateManager } from '../game/gameState';
+import { ITEM_DEFINITIONS } from '../game/items';
 
 export function BiddingView() {
   const state = gameStateManager.state;
   const loc = state.currentLocation;
-  
-  const travelCost = loc ? loc.distance * (state.inventory.kiddieRides * 2 + state.inventory.majorRides * 5 + state.inventory.spectacularRides * 10 + state.inventory.foodStalls * 1) : 0;
+
+  // Calculate travel cost from dynamic inventory using each item's travelWeight
+  const travelCost = loc ? loc.distance * Object.entries(state.inventory).reduce((sum, [itemId, count]) => {
+    const def = ITEM_DEFINITIONS[itemId];
+    return sum + (def ? def.travelWeight * count : 0);
+  }, 0) : 0;
   
   const [bidAmount, setBidAmount] = useState(loc?.fee || 0);
   const [revenueShare, setRevenueShare] = useState(loc?.revenueShare || 0.2);

@@ -21,6 +21,16 @@ export interface AssetRecord {
   image_path: string | null;
   created_at: string;
   updated_at: string;
+  // Game stats for named buildings
+  prestige: number;
+  value: number;
+  item_cost: number;
+  base_price: number;
+  unlock_day: number;
+  unlock_location: string | null;
+  capacity: number | null;
+  duration: number | null;
+  travel_weight: number;
 }
 
 const API_BASE = '/api';
