@@ -33,6 +33,7 @@ export interface AssetRecord {
   travel_weight: number;
   quality: number;
   game_category: string | null;
+  biomes: string | null; // comma-separated biome tags for scenery
 }
 
 const API_BASE = '/api';

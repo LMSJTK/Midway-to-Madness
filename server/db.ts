@@ -48,6 +48,7 @@ const gameStatCols: [string, string][] = [
   ['travel_weight',  'INTEGER NOT NULL DEFAULT 1'],
   ['quality',        'INTEGER NOT NULL DEFAULT 50'],
   ['game_category',  'TEXT'],
+  ['biomes',         'TEXT'],  // comma-separated biome tags for scenery (meadow,forest,etc.)
 ];
 for (const [col, def] of gameStatCols) {
   try { db.exec(`ALTER TABLE assets ADD COLUMN ${col} ${def}`); } catch { /* already exists */ }
@@ -83,6 +84,7 @@ export interface AssetRow {
   travel_weight: number;
   quality: number;
   game_category: string | null; // ItemCategory for game behavior (kiddie, food, etc.)
+  biomes: string | null; // comma-separated biome tags for scenery props
 }
 
 export const queries = {
@@ -96,11 +98,11 @@ export const queries = {
     INSERT INTO assets (id, name, category, state, prompt, negative_prompt, model, seed,
                         grid_w, grid_h, anchor_x, anchor_y, entity_type, slot, image_path,
                         prestige, value, item_cost, base_price, unlock_day, unlock_location,
-                        capacity, duration, travel_weight, quality, game_category)
+                        capacity, duration, travel_weight, quality, game_category, biomes)
     VALUES (@id, @name, @category, @state, @prompt, @negative_prompt, @model, @seed,
             @grid_w, @grid_h, @anchor_x, @anchor_y, @entity_type, @slot, @image_path,
             @prestige, @value, @item_cost, @base_price, @unlock_day, @unlock_location,
-            @capacity, @duration, @travel_weight, @quality, @game_category)
+            @capacity, @duration, @travel_weight, @quality, @game_category, @biomes)
   `),
 
   update: db.prepare(`
@@ -111,7 +113,8 @@ export const queries = {
       entity_type = @entity_type, slot = @slot, image_path = @image_path,
       prestige = @prestige, value = @value, item_cost = @item_cost, base_price = @base_price,
       unlock_day = @unlock_day, unlock_location = @unlock_location,
-      capacity = @capacity, duration = @duration, travel_weight = @travel_weight, quality = @quality, game_category = @game_category,
+      capacity = @capacity, duration = @duration, travel_weight = @travel_weight, quality = @quality,
+      game_category = @game_category, biomes = @biomes,
       updated_at = datetime('now')
     WHERE id = @id
   `),

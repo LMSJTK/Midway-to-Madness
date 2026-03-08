@@ -24,6 +24,7 @@ export function BiddingView() {
         phase: 'SETUP',
         currentLocation: { ...loc, fee: bidAmount, revenueShare }
       });
+      gameStateManager.generateScenery();
     }
   };
 

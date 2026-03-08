@@ -1,4 +1,5 @@
 import { ITEM_DEFINITIONS, STOCK_CATEGORIES } from './items';
+import { Biome, SceneryItem, generateScenery } from './scenery';
 
 export type Phase = 'MAP' | 'BIDDING' | 'SETUP' | 'OPERATION' | 'TEARDOWN' | 'SUMMARY';
 
@@ -10,12 +11,13 @@ export interface Location {
   fee: number;
   expectedGuests: number;
   revenueShare: number;
+  biome: Biome;
 }
 
 export const LOCATIONS: Location[] = [
-  { id: 'loc1', name: 'Smallville Fair', type: 'Local', distance: 50, fee: 500, expectedGuests: 200, revenueShare: 0.1 },
-  { id: 'loc2', name: 'County Jamboree', type: 'County', distance: 150, fee: 2000, expectedGuests: 800, revenueShare: 0.2 },
-  { id: 'loc3', name: 'State Expo', type: 'State', distance: 400, fee: 8000, expectedGuests: 3000, revenueShare: 0.3 },
+  { id: 'loc1', name: 'Smallville Fair', type: 'Local', distance: 50, fee: 500, expectedGuests: 200, revenueShare: 0.1, biome: 'meadow' },
+  { id: 'loc2', name: 'County Jamboree', type: 'County', distance: 150, fee: 2000, expectedGuests: 800, revenueShare: 0.2, biome: 'forest' },
+  { id: 'loc3', name: 'State Expo', type: 'State', distance: 400, fee: 8000, expectedGuests: 3000, revenueShare: 0.3, biome: 'urban' },
 ];
 
 export interface Staff {
@@ -69,6 +71,7 @@ export class StateManager {
       sanitation: 0,
     } as Staff,
     placedItems: [] as PlacedItem[],
+    sceneryItems: [] as SceneryItem[],
     priceOverrides: {} as Record<string, number>,
     selectedGuestId: null as number | null,
     selectedItemId: null as string | null,
@@ -112,6 +115,16 @@ export class StateManager {
     if (this.state.day < def.unlockDay) return false;
     if (def.unlockLocation && !this.state.visitedLocations.includes(def.unlockLocation)) return false;
     return true;
+  }
+
+  /** Generate scenery for the current location's biome */
+  generateScenery() {
+    const loc = this.state.currentLocation;
+    if (!loc) return;
+    // Use a seed based on location ID for deterministic scenery per location
+    const seed = loc.id.split('').reduce((acc, c) => acc * 31 + c.charCodeAt(0), 0);
+    this.state.sceneryItems = generateScenery(loc.biome, seed);
+    this.notify();
   }
 
   setGlobalPrice(itemDefId: string, price: number) {
