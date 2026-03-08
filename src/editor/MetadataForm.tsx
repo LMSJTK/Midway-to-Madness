@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AssetRecord, assetsApi, exportApi } from './api';
 import { ITEM_DEFINITIONS, ItemCategory } from '../game/items';
 import type { Biome } from '../game/scenery';
+import { SCENERY_DEFINITIONS } from '../game/scenery';
 
 const ALL_BIOMES: Biome[] = ['meadow', 'desert', 'urban', 'forest', 'coastal'];
 
@@ -41,7 +42,7 @@ export function MetadataForm({ asset, onAssetUpdated }: Props) {
   }
 
   // Determine if current entity_type is an existing ITEM_DEFINITION or a custom/new one
-  const isExistingEntity = asset.entity_type ? !!ITEM_DEFINITIONS[asset.entity_type] : false;
+  const isExistingEntity = asset.entity_type ? (!!ITEM_DEFINITIONS[asset.entity_type] || !!SCENERY_DEFINITIONS[asset.entity_type]) : false;
   const isNewEntity = asset.entity_type && !isExistingEntity;
 
   async function handleStateChange(newState: string) {
@@ -154,6 +155,11 @@ export function MetadataForm({ asset, onAssetUpdated }: Props) {
                 </optgroup>
               );
             })}
+            <optgroup label="Scenery & Props">
+              {Object.values(SCENERY_DEFINITIONS).map(scenery => (
+                <option key={scenery.id} value={scenery.id}>{scenery.name}</option>
+              ))}
+            </optgroup>
           </select>
         </label>
 
