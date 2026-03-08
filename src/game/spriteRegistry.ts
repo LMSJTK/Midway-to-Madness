@@ -6,6 +6,7 @@
  */
 
 import { registerItem, ITEM_DEFINITIONS, CATEGORY_DEFAULTS, ItemCategory } from './items';
+import { registerScenery, Biome } from './scenery';
 
 export interface SpriteAsset {
   image: HTMLImageElement;
@@ -37,6 +38,7 @@ export interface ManifestEntry {
   entityType: string;
   slot: string;
   gameCategory?: string; // ItemCategory for behavior (kiddie, food, etc.)
+  biomes?: string[];    // biome tags for scenery props
   gameStats?: ManifestGameStats;
 }
 
@@ -121,6 +123,21 @@ class SpriteRegistry {
           unlockLocation: gs.unlockLocation ?? undefined,
           capacity: gs.capacity ?? undefined,
           duration: gs.duration ?? undefined,
+        });
+      }
+
+      // Register manifest entries as scenery definitions (prop/terrain with biomes)
+      for (const [id, entry] of Object.entries(manifest)) {
+        if (entry.slot !== 'base_idle' || !entry.biomes || entry.biomes.length === 0) continue;
+        registerScenery({
+          id: entry.entityType || id,
+          name: entry.gameStats?.name || id,
+          biomes: entry.biomes as Biome[],
+          width: entry.footprint.w * 50,
+          height: entry.footprint.h * 50,
+          color: '#888',
+          z: 15,
+          frequency: 4,
         });
       }
 

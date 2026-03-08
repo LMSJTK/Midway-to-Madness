@@ -21,6 +21,7 @@ router.post('/', (_req, res) => {
     entityType: string;
     slot: string;
     gameCategory?: string;
+    biomes?: string[];
     gameStats?: {
       name: string;
       prestige: number;
@@ -55,6 +56,7 @@ router.post('/', (_req, res) => {
       entityType: asset.entity_type,
       slot: asset.slot,
       gameCategory: asset.game_category || undefined,
+      biomes: asset.biomes ? asset.biomes.split(',').map((b: string) => b.trim()) : undefined,
       gameStats: {
         name: asset.name,
         prestige: asset.prestige,

@@ -67,6 +67,7 @@ router.post('/', (req, res) => {
     travel_weight: asset.travel_weight ?? 1,
     quality: asset.quality ?? 50,
     game_category: asset.game_category || null,
+    biomes: asset.biomes || null,
   });
 
   const created = queries.getById.get(asset.id) as AssetRow;

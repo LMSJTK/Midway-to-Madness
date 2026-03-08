@@ -3,6 +3,7 @@ import { gameStateManager } from './gameState';
 import { GuestSpawningSystem, GuestAISystem, MovementSystem, TimeSystem, StaffAISystem } from './systems';
 import { spriteRegistry } from './spriteRegistry';
 import { CATEGORY_DEFAULTS, ItemCategory, ITEM_DEFINITIONS } from './items';
+import { BIOME_CONFIG, SCENERY_DEFINITIONS } from './scenery';
 
 export const ISO_OFFSET_X = 400;
 export const ISO_OFFSET_Y = 100;
@@ -207,9 +208,11 @@ export class GameEngine {
        this.ctx.translate(this.camera.x, this.camera.y);
        this.ctx.scale(this.camera.zoom, this.camera.zoom);
 
-       // Draw grass base (isometric)
-       drawIsoBlock(this.ctx, 0, 0, 800, 600, 20, '#4ade80');
-       
+       // Draw base ground with biome-aware color
+       const biome = state.currentLocation?.biome ?? 'meadow';
+       const biomeColors = BIOME_CONFIG[biome];
+       drawIsoBlock(this.ctx, 0, 0, 800, 600, 20, biomeColors.groundColor);
+
        const renderItems: RenderItem[] = [];
 
        // Add entrance
@@ -219,8 +222,38 @@ export class GameEngine {
          y: 580,
          w: 100,
          h: 20,
-         color: '#9ca3af'
+         color: biomeColors.entranceColor
        });
+
+       // Add scenery items
+       for (const scenery of state.sceneryItems) {
+         const def = SCENERY_DEFINITIONS[scenery.defId];
+         if (!def) continue;
+
+         const sprite = spriteRegistry.get(scenery.defId, 'base_idle');
+         if (sprite) {
+           renderItems.push({
+             type: 'sprite',
+             x: scenery.x,
+             y: scenery.y,
+             w: scenery.width,
+             h: scenery.height,
+             color: '',
+             spriteImage: sprite.image,
+             spriteAnchor: sprite.anchor,
+           });
+         } else {
+           renderItems.push({
+             type: 'block',
+             x: scenery.x,
+             y: scenery.y,
+             w: scenery.width,
+             h: scenery.height,
+             z: def.z,
+             color: def.color,
+           });
+         }
+       }
 
        // Add placed items
        for (const item of state.placedItems) {

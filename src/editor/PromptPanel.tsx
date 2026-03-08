@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { generateApi, assetsApi, AssetRecord } from './api';
 import { ITEM_DEFINITIONS, ItemCategory } from '../game/items';
+import type { Biome } from '../game/scenery';
+
+const ALL_BIOMES: Biome[] = ['meadow', 'desert', 'urban', 'forest', 'coastal'];
 
 const CATEGORIES = [
   { value: 'ride', label: 'Ride' },
@@ -44,6 +47,7 @@ export function PromptPanel({ onAssetCreated, currentAsset }: Props) {
   const [slot, setSlot] = useState('base_idle');
   const [gridW, setGridW] = useState(1);
   const [gridH, setGridH] = useState(1);
+  const [selectedBiomes, setSelectedBiomes] = useState<Biome[]>([]);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,6 +88,7 @@ export function PromptPanel({ onAssetCreated, currentAsset }: Props) {
         grid_w: gridW,
         grid_h: gridH,
         image_path: result.imagePath,
+        biomes: selectedBiomes.length > 0 ? selectedBiomes.join(',') : null,
       });
 
       onAssetCreated(asset);
@@ -181,6 +186,33 @@ export function PromptPanel({ onAssetCreated, currentAsset }: Props) {
             ))}
           </select>
         </label>
+      )}
+
+      {(category === 'prop' || category === 'terrain') && (
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-zinc-400">Biome Tags</span>
+          <div className="flex flex-wrap gap-2">
+            {ALL_BIOMES.map(biome => {
+              const isActive = selectedBiomes.includes(biome);
+              return (
+                <button
+                  key={biome}
+                  type="button"
+                  onClick={() => setSelectedBiomes(
+                    isActive ? selectedBiomes.filter(b => b !== biome) : [...selectedBiomes, biome]
+                  )}
+                  className={`text-xs px-2 py-1 rounded transition-colors ${
+                    isActive
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-zinc-700 text-zinc-400 hover:bg-zinc-600'
+                  }`}
+                >
+                  {biome}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       <div className="grid grid-cols-3 gap-2">

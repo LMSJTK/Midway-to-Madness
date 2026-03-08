@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { AssetRecord, assetsApi, exportApi } from './api';
 import { ITEM_DEFINITIONS, ItemCategory } from '../game/items';
+import type { Biome } from '../game/scenery';
+
+const ALL_BIOMES: Biome[] = ['meadow', 'desert', 'urban', 'forest', 'coastal'];
 
 const CATEGORY_ORDER: ItemCategory[] = ['kiddie', 'major', 'spectacular', 'food', 'bathroom', 'gameStall', 'shop', 'performance'];
 const CATEGORY_LABELS: Record<ItemCategory, string> = {
@@ -198,6 +201,37 @@ export function MetadataForm({ asset, onAssetUpdated }: Props) {
             ))}
           </select>
         </label>
+      )}
+
+      {/* Biome tags (for prop/terrain scenery) */}
+      {(asset.category === 'prop' || asset.category === 'terrain') && (
+        <div className="border-t border-zinc-700 pt-2">
+          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wide mb-2">Biome Tags</h3>
+          <div className="flex flex-wrap gap-2">
+            {ALL_BIOMES.map(biome => {
+              const currentBiomes = asset.biomes ? asset.biomes.split(',').map(b => b.trim()) : [];
+              const isActive = currentBiomes.includes(biome);
+              return (
+                <button
+                  key={biome}
+                  onClick={() => {
+                    const updated = isActive
+                      ? currentBiomes.filter(b => b !== biome)
+                      : [...currentBiomes, biome];
+                    handleFieldChange('biomes', updated.length > 0 ? updated.join(',') : null);
+                  }}
+                  className={`text-xs px-2 py-1 rounded transition-colors ${
+                    isActive
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-zinc-700 text-zinc-400 hover:bg-zinc-600'
+                  }`}
+                >
+                  {biome}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       {/* Game stats */}
