@@ -11,6 +11,7 @@ import { ParkView } from './components/ParkView';
 import { SummaryView } from './components/SummaryView';
 import { EditorView } from './editor/EditorView';
 import { gameStateManager } from './game/gameState';
+import { musicManager } from './game/musicManager';
 
 function useIsEditorRoute() {
   const [isEditor, setIsEditor] = useState(
@@ -32,7 +33,9 @@ export default function App() {
 
   useEffect(() => {
     const unsubscribe = gameStateManager.subscribe(() => {
-      setPhase(gameStateManager.state.phase);
+      const newPhase = gameStateManager.state.phase;
+      setPhase(newPhase);
+      musicManager.onPhaseChange(newPhase);
     });
     return unsubscribe;
   }, []);
