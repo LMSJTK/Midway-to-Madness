@@ -1,11 +1,13 @@
 import { World, Entity } from './ecs';
 import { gameStateManager } from './gameState';
 import { INSTANT_CATEGORIES, STOCK_CATEGORIES, ITEM_DEFINITIONS, ItemCategory } from './items';
+import { SIM_SPEED_MULTIPLIERS } from './gameState';
+import { spriteRegistry } from './spriteRegistry';
 
 export interface Position { x: number; y: number; }
 export interface Velocity { vx: number; vy: number; }
 export interface Renderable { type: 'guest' | 'ride' | 'stall'; color: string; size: number; }
-export interface Guest { money: number; initialMoney: number; hunger: number; bladder: number; excitement: number; targetId: string | null; state: 'wandering' | 'walking' | 'riding' | 'eating' | 'leaving'; timer: number; arrivalTime: number; }
+export interface Guest { money: number; initialMoney: number; hunger: number; bladder: number; excitement: number; targetId: string | null; state: 'wandering' | 'walking' | 'riding' | 'eating' | 'leaving'; timer: number; arrivalTime: number; portraitIndex: number; }
 export interface Ride { id: string; type: string; capacity: number; currentRiders: number; duration: number; timer: number; ticketPrice: number; excitement: number; x: number; y: number; w: number; h: number; }
 export interface StaffMember { type: 'maintenance' | 'sanitation'; targetId: string | number | null; state: 'wandering' | 'walking' | 'working'; timer: number; }
 export interface Trash {}
@@ -27,7 +29,8 @@ export function GuestSpawningSystem(world: World, dt: number) {
   // Average value is 6 / 14 = 0.42. So we divide by 0.42 to normalize.
   const normalizedPeak = peakFactor / 0.42;
   
-  const spawnChance = (expected / 84) * normalizedPeak * dt;
+  const speedMul = SIM_SPEED_MULTIPLIERS[state.simSpeed] ?? 1;
+  const spawnChance = (expected / 84) * normalizedPeak * dt * speedMul;
 
   if (Math.random() < spawnChance && state.stats.guestsToday < expected) {
     const entity = world.createEntity();
@@ -35,16 +38,18 @@ export function GuestSpawningSystem(world: World, dt: number) {
     world.addComponent<Velocity>(entity, 'Velocity', { vx: 0, vy: -50 });
     world.addComponent<Renderable>(entity, 'Renderable', { type: 'guest', color: '#3b82f6', size: 4 });
     const initialMoney = 50 + Math.random() * 100;
-    world.addComponent<Guest>(entity, 'Guest', { 
-      money: initialMoney, 
+    const portraitCount = spriteRegistry.guestPortraits.length;
+    world.addComponent<Guest>(entity, 'Guest', {
+      money: initialMoney,
       initialMoney,
-      hunger: Math.random() * 50, 
+      hunger: Math.random() * 50,
       bladder: Math.random() * 30,
-      excitement: 0, 
-      targetId: null, 
-      state: 'wandering', 
+      excitement: 0,
+      targetId: null,
+      state: 'wandering',
       timer: 0,
-      arrivalTime: state.time
+      arrivalTime: state.time,
+      portraitIndex: portraitCount > 0 ? Math.floor(Math.random() * portraitCount) : -1,
     });
     state.stats.guestsToday++;
   }
@@ -465,9 +470,10 @@ let lastNotifyTime = 0;
 export function TimeSystem(world: World, dt: number) {
   const state = gameStateManager.state;
   if (state.phase === 'OPERATION') {
-    // 1 real second = 10 in-game minutes
-    // 6 real seconds = 1 in-game hour
-    state.time += dt / 6;
+    // 1 real second = 10 in-game minutes (at fast speed)
+    // 6 real seconds = 1 in-game hour (at fast speed)
+    const speedMul = SIM_SPEED_MULTIPLIERS[state.simSpeed] ?? 1;
+    state.time += (dt * speedMul) / 6;
     if (state.time >= 22) { // 10 PM
       gameStateManager.update({ phase: 'TEARDOWN' });
     } else {

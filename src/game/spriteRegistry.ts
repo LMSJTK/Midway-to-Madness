@@ -47,6 +47,7 @@ export type AssetManifest = Record<string, ManifestEntry>;
 class SpriteRegistry {
   private assets: Map<string, SpriteAsset> = new Map();
   private loaded = false;
+  public guestPortraits: string[] = [];
 
   /** Build a lookup key from entity type + slot */
   private key(entityType: string, slot: string): string {
@@ -141,8 +142,15 @@ class SpriteRegistry {
         });
       }
 
+      // Collect guest portrait image paths
+      for (const [_id, entry] of Object.entries(manifest)) {
+        if (entry.entityType === 'guest_portrait' && entry.path) {
+          this.guestPortraits.push(entry.path);
+        }
+      }
+
       this.loaded = true;
-      console.log(`Sprite registry loaded: ${this.assets.size} assets`);
+      console.log(`Sprite registry loaded: ${this.assets.size} assets, ${this.guestPortraits.length} portraits`);
     } catch {
       console.log('Asset manifest not available — using primitive rendering');
     }

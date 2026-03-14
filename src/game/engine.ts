@@ -129,6 +129,12 @@ interface RenderItem {
   spriteAnchor?: { x: number; y: number };
 }
 
+export interface GhostPreview {
+  itemDefId: string;
+  x: number;
+  y: number;
+}
+
 export class GameEngine {
   public world: World;
   public camera = { x: 0, y: 0, zoom: 1 };
@@ -137,9 +143,10 @@ export class GameEngine {
   private readonly SIMULATION_STEP = 1000 / 20; // 20 FPS for logic
   private animationFrameId: number = 0;
   private isRunning: boolean = false;
-  
+
   public canvas: HTMLCanvasElement | null = null;
   public ctx: CanvasRenderingContext2D | null = null;
+  public ghost: GhostPreview | null = null;
 
   constructor() {
     this.world = new World();
@@ -369,6 +376,29 @@ export class GameEngine {
            }
          } else if (item.type === 'guest') {
            drawIsoGuest(this.ctx, item.x, item.y, item.color, item.size!);
+         }
+       }
+
+       // Draw ghost preview for building placement
+       if (this.ghost && state.phase === 'SETUP') {
+         const def = ITEM_DEFINITIONS[this.ghost.itemDefId];
+         if (def) {
+           const gx = this.ghost.x - def.width / 2;
+           const gy = this.ghost.y - def.height / 2;
+           this.ctx.globalAlpha = 0.4;
+
+           const slot = 'base_idle';
+           const sprite = spriteRegistry.get(this.ghost.itemDefId, slot) || spriteRegistry.get(def.category, slot);
+           if (sprite) {
+             drawSpriteIso(this.ctx, sprite.image, gx, gy, sprite.anchor);
+           } else {
+             const catDefaults = CATEGORY_DEFAULTS[def.category as ItemCategory];
+             const color = catDefaults?.color ?? '#fff';
+             const z = catDefaults?.z ?? 20;
+             drawIsoBlock(this.ctx, gx, gy, def.width, def.height, z, color);
+           }
+
+           this.ctx.globalAlpha = 1.0;
          }
        }
 

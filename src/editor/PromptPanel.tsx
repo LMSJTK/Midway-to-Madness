@@ -15,6 +15,7 @@ const CATEGORIES = [
   { value: 'prop', label: 'Prop' },
   { value: 'terrain', label: 'Terrain' },
   { value: 'ui', label: 'UI' },
+  { value: 'portrait', label: 'Guest Portrait' },
 ];
 
 const CATEGORY_ORDER: ItemCategory[] = ['kiddie', 'major', 'spectacular', 'food', 'bathroom', 'gameStall', 'shop', 'performance'];
