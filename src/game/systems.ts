@@ -3,6 +3,7 @@ import { gameStateManager } from './gameState';
 import { INSTANT_CATEGORIES, STOCK_CATEGORIES, ITEM_DEFINITIONS, ItemCategory } from './items';
 import { SIM_SPEED_MULTIPLIERS } from './gameState';
 import { spriteRegistry } from './spriteRegistry';
+import { GAME_CONFIG } from './constants';
 
 export interface Position { x: number; y: number; }
 export interface Velocity { vx: number; vy: number; }
@@ -34,7 +35,7 @@ export function GuestSpawningSystem(world: World, dt: number) {
 
   if (Math.random() < spawnChance && state.stats.guestsToday < expected) {
     const entity = world.createEntity();
-    world.addComponent<Position>(entity, 'Position', { x: 400, y: 600 }); // Entrance
+    world.addComponent<Position>(entity, 'Position', { x: GAME_CONFIG.ENTRANCE_X, y: GAME_CONFIG.ENTRANCE_Y }); // Entrance
     world.addComponent<Velocity>(entity, 'Velocity', { vx: 0, vy: -50 });
     world.addComponent<Renderable>(entity, 'Renderable', { type: 'guest', color: '#3b82f6', size: 4 });
     const initialMoney = 50 + Math.random() * 100;
@@ -79,9 +80,9 @@ export function GuestAISystem(world: World, dt: number) {
     }
 
     if (guest.state === 'leaving') {
-      // Move towards exit (400, 600)
-      const dx = 400 - pos.x;
-      const dy = 600 - pos.y;
+      // Move towards exit
+      const dx = GAME_CONFIG.ENTRANCE_X - pos.x;
+      const dy = GAME_CONFIG.ENTRANCE_Y - pos.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist < 10) {
         world.destroyEntity(entity);
@@ -263,9 +264,9 @@ export function GuestAISystem(world: World, dt: number) {
     
     // Keep in bounds
     if (pos.x < 0) pos.x = 0;
-    if (pos.x > 800) pos.x = 800;
+    if (pos.x > GAME_CONFIG.MAP_WIDTH) pos.x = GAME_CONFIG.MAP_WIDTH;
     if (pos.y < 0) pos.y = 0;
-    if (pos.y > 600) pos.y = 600;
+    if (pos.y > GAME_CONFIG.MAP_HEIGHT) pos.y = GAME_CONFIG.MAP_HEIGHT;
   }
 }
 
@@ -441,15 +442,15 @@ export function StaffAISystem(world: World, dt: number) {
     
     // Keep in bounds
     if (pos.x < 0) pos.x = 0;
-    if (pos.x > 800) pos.x = 800;
+    if (pos.x > GAME_CONFIG.MAP_WIDTH) pos.x = GAME_CONFIG.MAP_WIDTH;
     if (pos.y < 0) pos.y = 0;
-    if (pos.y > 600) pos.y = 600;
+    if (pos.y > GAME_CONFIG.MAP_HEIGHT) pos.y = GAME_CONFIG.MAP_HEIGHT;
   }
 
   // Spawn missing staff
   while (maintCount < state.staff.maintenance) {
     const entity = world.createEntity();
-    world.addComponent<Position>(entity, 'Position', { x: 400, y: 600 });
+    world.addComponent<Position>(entity, 'Position', { x: GAME_CONFIG.ENTRANCE_X, y: GAME_CONFIG.ENTRANCE_Y });
     world.addComponent<Velocity>(entity, 'Velocity', { vx: 0, vy: -50 });
     world.addComponent<Renderable>(entity, 'Renderable', { type: 'staff', color: '#f97316', size: 4 }); // Orange
     world.addComponent<StaffMember>(entity, 'Staff', { type: 'maintenance', targetId: null, state: 'wandering', timer: 0 });
@@ -457,7 +458,7 @@ export function StaffAISystem(world: World, dt: number) {
   }
   while (saniCount < state.staff.sanitation) {
     const entity = world.createEntity();
-    world.addComponent<Position>(entity, 'Position', { x: 400, y: 600 });
+    world.addComponent<Position>(entity, 'Position', { x: GAME_CONFIG.ENTRANCE_X, y: GAME_CONFIG.ENTRANCE_Y });
     world.addComponent<Velocity>(entity, 'Velocity', { vx: 0, vy: -50 });
     world.addComponent<Renderable>(entity, 'Renderable', { type: 'staff', color: '#f8fafc', size: 4 }); // White
     world.addComponent<StaffMember>(entity, 'Staff', { type: 'sanitation', targetId: null, state: 'wandering', timer: 0 });

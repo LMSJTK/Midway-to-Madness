@@ -129,23 +129,25 @@ export function generateScenery(biome: Biome, seed?: number): SceneryItem[] {
   const items: SceneryItem[] = [];
   const placed: { x: number; y: number; w: number; h: number }[] = [];
 
-  // Define placement zones (edges of the 800x600 world, avoiding central play area)
-  // The play area is roughly 100-700 x 50-530. We scatter props around the margins.
+  // Define placement zones (edges of the world, avoiding central play area)
+  const W = 1600, H = 1200; // map dimensions
+  const EDGE = 160; // edge margin width
+  const ENTRANCE_X = 800;
   const zones = [
     // Top edge
-    { xMin: 0, xMax: 800, yMin: 0, yMax: 80 },
-    // Bottom edge (but leave entrance at 350-450, 580-600)
-    { xMin: 0, xMax: 300, yMin: 520, yMax: 600 },
-    { xMin: 500, xMax: 800, yMin: 520, yMax: 600 },
+    { xMin: 0, xMax: W, yMin: 0, yMax: EDGE },
+    // Bottom edge (but leave entrance gap)
+    { xMin: 0, xMax: ENTRANCE_X - 100, yMin: H - EDGE, yMax: H },
+    { xMin: ENTRANCE_X + 100, xMax: W, yMin: H - EDGE, yMax: H },
     // Left edge
-    { xMin: 0, xMax: 80, yMin: 80, yMax: 520 },
+    { xMin: 0, xMax: EDGE, yMin: EDGE, yMax: H - EDGE },
     // Right edge
-    { xMin: 720, xMax: 800, yMin: 80, yMax: 520 },
+    { xMin: W - EDGE, xMax: W, yMin: EDGE, yMax: H - EDGE },
     // Scatter a few in the interior (sparse, won't collide with rides due to collision check)
-    { xMin: 100, xMax: 700, yMin: 80, yMax: 520 },
+    { xMin: EDGE + 50, xMax: W - EDGE - 50, yMin: EDGE, yMax: H - EDGE },
   ];
 
-  const targetCount = 15 + Math.floor(rand() * 10); // 15-24 props
+  const targetCount = 30 + Math.floor(rand() * 20); // 30-49 props (scaled for larger map)
 
   for (let attempt = 0; attempt < targetCount * 5 && items.length < targetCount; attempt++) {
     const def = pool[Math.floor(rand() * pool.length)];
@@ -154,8 +156,8 @@ export function generateScenery(biome: Biome, seed?: number): SceneryItem[] {
     const x = zone.xMin + rand() * (zone.xMax - zone.xMin - def.width);
     const y = zone.yMin + rand() * (zone.yMax - zone.yMin - def.height);
 
-    // Skip if overlapping entrance area (350-450, 570-600)
-    if (x + def.width > 340 && x < 460 && y + def.height > 560) continue;
+    // Skip if overlapping entrance area
+    if (x + def.width > ENTRANCE_X - 60 && x < ENTRANCE_X + 60 && y + def.height > H - 40) continue;
 
     // Check collision with already placed scenery
     const overlaps = placed.some(p =>

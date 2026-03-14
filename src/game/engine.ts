@@ -4,9 +4,10 @@ import { GuestSpawningSystem, GuestAISystem, MovementSystem, TimeSystem, StaffAI
 import { spriteRegistry } from './spriteRegistry';
 import { CATEGORY_DEFAULTS, ItemCategory, ITEM_DEFINITIONS } from './items';
 import { BIOME_CONFIG, SCENERY_DEFINITIONS } from './scenery';
+import { GAME_CONFIG } from './constants';
 
-export const ISO_OFFSET_X = 400;
-export const ISO_OFFSET_Y = 100;
+export const ISO_OFFSET_X = GAME_CONFIG.ISO_OFFSET_X;
+export const ISO_OFFSET_Y = GAME_CONFIG.ISO_OFFSET_Y;
 
 export function toIso(x: number, y: number) {
   return {
@@ -218,15 +219,15 @@ export class GameEngine {
        // Draw base ground with biome-aware color
        const biome = state.currentLocation?.biome ?? 'meadow';
        const biomeColors = BIOME_CONFIG[biome];
-       drawIsoBlock(this.ctx, 0, 0, 800, 600, 20, biomeColors.groundColor);
+       drawIsoBlock(this.ctx, 0, 0, GAME_CONFIG.MAP_WIDTH, GAME_CONFIG.MAP_HEIGHT, 20, biomeColors.groundColor);
 
        const renderItems: RenderItem[] = [];
 
        // Add entrance
        renderItems.push({
          type: 'flat',
-         x: 350,
-         y: 580,
+         x: GAME_CONFIG.ENTRANCE_X - 50,
+         y: GAME_CONFIG.MAP_HEIGHT - 20,
          w: 100,
          h: 20,
          color: biomeColors.entranceColor
