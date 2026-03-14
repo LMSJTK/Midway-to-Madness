@@ -20,11 +20,33 @@ const PROMPT_SUFFIX = 'single isolated object, no text, no watermark, game asset
 // A 50x50 logical item → diamond 100px wide, 50px tall + z-height for blocks.
 // Food stall (z=20): ~100x70px. Spectacular (z=80): ~200x180px.
 // We add padding so sprites have room for visual detail above the base.
+// For asymmetric footprints the wider axis drives the sprite size.
 const SPRITE_SIZE_MAP: Record<string, { width: number; height: number }> = {
-  '1x1': { width: 100, height: 100 },   // stalls, bathrooms, kiddie rides (50x50 logical)
-  '2x2': { width: 150, height: 150 },   // major attractions (75x75 logical)
-  '3x3': { width: 200, height: 200 },   // spectacular rides (100x100 logical)
+  '1x1': { width: 100, height: 100 },   // stalls, bathrooms, kiddie rides
+  '1x2': { width: 120, height: 140 },   // tall narrow structures
+  '2x1': { width: 140, height: 120 },   // wide narrow structures
+  '2x2': { width: 150, height: 150 },   // major attractions
+  '2x3': { width: 170, height: 190 },   // large rectangular
+  '3x2': { width: 190, height: 170 },   // wide rectangular
+  '3x3': { width: 200, height: 200 },   // spectacular rides
+  '3x4': { width: 220, height: 250 },   // very large rectangular
+  '4x3': { width: 250, height: 220 },   // very wide rectangular
+  '4x4': { width: 260, height: 260 },   // massive structures
 };
+
+/** Compute sprite size for any grid footprint, using the map for known sizes
+ *  or interpolating for unlisted combinations. */
+function getSpriteSize(gridW: number, gridH: number): { width: number; height: number } {
+  const key = `${gridW}x${gridH}`;
+  if (SPRITE_SIZE_MAP[key]) return SPRITE_SIZE_MAP[key];
+  // Fallback: scale linearly from the 1x1 base (100px per grid unit, diminishing)
+  const maxDim = Math.max(gridW, gridH);
+  const base = 100;
+  const size = base + (maxDim - 1) * 50;
+  const w = Math.round(size * (gridW / maxDim));
+  const h = Math.round(size * (gridH / maxDim));
+  return { width: Math.max(w, base), height: Math.max(h, base) };
+}
 
 const REMBG_URL = process.env.REMBG_URL || 'http://rembg:5000';
 
@@ -94,8 +116,7 @@ router.post('/', async (req, res) => {
     buffer = await removeBackground(buffer);
 
     // Step 2: Resize to target sprite dimensions based on grid footprint
-    const sizeKey = `${gridW}x${gridH}`;
-    const targetSize = SPRITE_SIZE_MAP[sizeKey] || SPRITE_SIZE_MAP['1x1'];
+    const targetSize = getSpriteSize(gridW, gridH);
 
     buffer = await sharp(buffer)
       .resize(targetSize.width, targetSize.height, {
