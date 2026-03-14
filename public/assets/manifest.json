@@ -1,6 +1,6 @@
 {
-  "hot_dog_stand": {
-    "path": "assets/sprites/stall/hot_dog_stand.png",
+  "rock_2": {
+    "path": "assets/sprites/stall/rock_2.png",
     "anchor": {
       "x": 0,
       "y": 0
@@ -9,7 +9,506 @@
       "w": 1,
       "h": 1
     },
-    "entityType": "food",
-    "slot": "base_idle"
+    "entityType": "rock",
+    "slot": "base_idle",
+    "gameStats": {
+      "name": "rock 2",
+      "prestige": 10,
+      "value": 20,
+      "cost": 500,
+      "basePrice": 5,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
+  },
+  "park_bench": {
+    "path": "assets/sprites/stall/park_bench.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "entityType": "bench",
+    "slot": "base_idle",
+    "gameStats": {
+      "name": "Park Bench",
+      "prestige": 10,
+      "value": 20,
+      "cost": 500,
+      "basePrice": 5,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
+  },
+  "bush": {
+    "path": "assets/sprites/stall/bush.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "entityType": "bush",
+    "slot": "base_idle",
+    "gameStats": {
+      "name": "Bush",
+      "prestige": 10,
+      "value": 20,
+      "cost": 500,
+      "basePrice": 5,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
+  },
+  "pine_tree": {
+    "path": "assets/sprites/stall/pine_tree.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 2,
+      "h": 2
+    },
+    "entityType": "pine_tree",
+    "slot": "base_idle",
+    "gameStats": {
+      "name": "Pine Tree",
+      "prestige": 10,
+      "value": 20,
+      "cost": 500,
+      "basePrice": 5,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
+  },
+  "splendid_oak_tree_2": {
+    "path": "assets/sprites/terrain/splendid_oak_tree_2.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 2,
+      "h": 2
+    },
+    "entityType": "oak_tree",
+    "slot": "base_idle",
+    "biomes": [
+      "meadow",
+      "forest"
+    ],
+    "gameStats": {
+      "name": "Splendid Oak Tree 2",
+      "prestige": 10,
+      "value": 20,
+      "cost": 500,
+      "basePrice": 5,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
+  },
+  "porta_potty": {
+    "path": "assets/sprites/stall/porta_potty.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "entityType": "porta_potty",
+    "slot": "base_idle",
+    "gameCategory": "bathroom",
+    "gameStats": {
+      "name": "Porta Potty",
+      "prestige": 10,
+      "value": 20,
+      "cost": 500,
+      "basePrice": 5,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
+  },
+  "roller_coaster": {
+    "path": "assets/sprites/stall/roller_coaster.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 3,
+      "h": 3
+    },
+    "entityType": "roller_coaster",
+    "slot": "base_idle",
+    "gameCategory": "spectacular",
+    "gameStats": {
+      "name": "Roller Coaster",
+      "prestige": 10,
+      "value": 20,
+      "cost": 500,
+      "basePrice": 5,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
+  },
+  "big_ferris_wheel": {
+    "path": "assets/sprites/stall/big_ferris_wheel.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 3,
+      "h": 3
+    },
+    "entityType": "ferris_wheel",
+    "slot": "base_idle",
+    "gameCategory": "spectacular",
+    "gameStats": {
+      "name": "BIG Ferris Wheel",
+      "prestige": 10,
+      "value": 20,
+      "cost": 500,
+      "basePrice": 5,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
+  },
+  "carnival_scrambler": {
+    "path": "assets/sprites/stall/carnival_scrambler.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 3,
+      "h": 3
+    },
+    "entityType": "scrambler",
+    "slot": "base_idle",
+    "gameCategory": "major",
+    "gameStats": {
+      "name": "Carnival Scrambler",
+      "prestige": 10,
+      "value": 20,
+      "cost": 500,
+      "basePrice": 5,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
+  },
+  "carousel": {
+    "path": "assets/sprites/stall/carousel.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 2,
+      "h": 2
+    },
+    "entityType": "carousel",
+    "slot": "base_idle",
+    "gameCategory": "kiddie",
+    "gameStats": {
+      "name": "Carousel",
+      "prestige": 10,
+      "value": 20,
+      "cost": 500,
+      "basePrice": 5,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
+  },
+  "bumper_cars": {
+    "path": "assets/sprites/stall/bumper_cars.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 3,
+      "h": 3
+    },
+    "entityType": "bumper_cars",
+    "slot": "base_idle",
+    "gameCategory": "kiddie",
+    "gameStats": {
+      "name": "Bumper cars",
+      "prestige": 10,
+      "value": 20,
+      "cost": 500,
+      "basePrice": 5,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
+  },
+  "teacups": {
+    "path": "assets/sprites/stall/teacups.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 2,
+      "h": 2
+    },
+    "entityType": "teacups",
+    "slot": "base_idle",
+    "gameCategory": "kiddie",
+    "gameStats": {
+      "name": "Teacups",
+      "prestige": 10,
+      "value": 20,
+      "cost": 500,
+      "basePrice": 5,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
+  },
+  "t_shirt_stand": {
+    "path": "assets/sprites/stall/t_shirt_stand.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "entityType": "souvenir_cart",
+    "slot": "base_idle",
+    "gameCategory": "shop",
+    "gameStats": {
+      "name": "t-shirt stand",
+      "prestige": 10,
+      "value": 20,
+      "cost": 500,
+      "basePrice": 5,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
+  },
+  "pizza_wagon": {
+    "path": "assets/sprites/stall/pizza_wagon.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "entityType": "pizza_oven",
+    "slot": "base_idle",
+    "gameCategory": "food",
+    "gameStats": {
+      "name": "pizza wagon",
+      "prestige": 10,
+      "value": 20,
+      "cost": 500,
+      "basePrice": 5,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
+  },
+  "hot_dog_stand_3": {
+    "path": "assets/sprites/stall/hot_dog_stand_3.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "entityType": "hot_dog_stand",
+    "slot": "base_idle",
+    "gameCategory": "food",
+    "gameStats": {
+      "name": "hot dog stand 3",
+      "prestige": 10,
+      "value": 20,
+      "cost": 500,
+      "basePrice": 5,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
+  },
+  "ice_cream_stand": {
+    "path": "assets/sprites/stall/ice_cream_stand.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "entityType": "ice_cream_stand",
+    "slot": "base_idle",
+    "gameCategory": "food",
+    "gameStats": {
+      "name": "ice cream stand",
+      "prestige": 10,
+      "value": 20,
+      "cost": 500,
+      "basePrice": 5,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
+  },
+  "bathroom": {
+    "path": "assets/sprites/stall/bathroom.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 3,
+      "h": 3
+    },
+    "entityType": "bathroom",
+    "slot": "base_idle",
+    "gameCategory": "bathroom",
+    "gameStats": {
+      "name": "Bathroom",
+      "prestige": 10,
+      "value": 20,
+      "cost": 500,
+      "basePrice": 5,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
+  },
+  "shop": {
+    "path": "assets/sprites/stall/shop.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 2,
+      "h": 2
+    },
+    "entityType": "shop",
+    "slot": "base_idle",
+    "gameCategory": "shop",
+    "gameStats": {
+      "name": "Shop",
+      "prestige": 10,
+      "value": 20,
+      "cost": 500,
+      "basePrice": 5,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
+  },
+  "ring_toss": {
+    "path": "assets/sprites/stall/ring_toss.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 2,
+      "h": 2
+    },
+    "entityType": "ring_toss",
+    "slot": "base_idle",
+    "gameCategory": "gameStall",
+    "gameStats": {
+      "name": "Ring Toss",
+      "prestige": 10,
+      "value": 20,
+      "cost": 500,
+      "basePrice": 5,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
   }
 }
