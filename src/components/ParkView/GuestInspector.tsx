@@ -3,6 +3,7 @@ import { engine } from '../../game/engine';
 import { gameStateManager } from '../../game/gameState';
 import { Guest } from '../../game/ecs';
 import { spriteRegistry } from '../../game/spriteRegistry';
+import { ITEM_DEFINITIONS } from '../../game/items';
 
 const formatTime = (time: number) => {
   const hours = Math.floor(time);
@@ -65,7 +66,17 @@ export function GuestInspector({ entityId }: { entityId: number }) {
         <div>Hunger: <span className="text-orange-400">{guestData.hunger.toFixed(0)}</span></div>
         <div>Bladder: <span className="text-blue-400">{guestData.bladder.toFixed(0)}</span></div>
         <div>Arrival: <span className="text-zinc-300">{formatTime(guestData.arrivalTime)}</span></div>
-        {guestData.targetId && <div>Target: <span className="text-zinc-300">{guestData.targetId}</span></div>}
+        {guestData.targetId && (() => {
+          const targetItem = gameStateManager.state.placedItems.find(i => i.id === guestData.targetId);
+          const targetName = targetItem ? (ITEM_DEFINITIONS[targetItem.itemDefId]?.name ?? targetItem.type) : guestData.targetId;
+          const queuePos = targetItem && guestData.state === 'queued'
+            ? targetItem.queue.indexOf(entityId) + 1
+            : null;
+          return <>
+            <div>Target: <span className="text-zinc-300">{targetName}</span></div>
+            {queuePos !== null && queuePos > 0 && <div>Queue position: <span className="text-amber-400">#{queuePos} of {targetItem!.queue.length}</span></div>}
+          </>;
+        })()}
       </div>
     </div>
   );

@@ -280,7 +280,7 @@ export class GameEngine {
              spriteImage: sprite.image,
              spriteAnchor: sprite.anchor,
              label: item.isBroken ? 'BROKEN' : undefined,
-             subLabel: item.capacity > 0 && !item.isBroken ? `${item.currentRiders}/${item.capacity}` : undefined
+             subLabel: item.capacity > 0 && !item.isBroken ? `${item.currentRiders}/${item.capacity}${item.queue.length > 0 ? ` +${item.queue.length}Q` : ''}` : undefined
            });
          } else {
            // Fallback to primitive colored blocks
@@ -301,7 +301,7 @@ export class GameEngine {
              z: z,
              color,
              label: item.isBroken ? 'BROKEN' : (ITEM_DEFINITIONS[item.itemDefId]?.name ?? item.type),
-             subLabel: item.capacity > 0 && !item.isBroken ? `${item.currentRiders}/${item.capacity}` : undefined
+             subLabel: item.capacity > 0 && !item.isBroken ? `${item.currentRiders}/${item.capacity}${item.queue.length > 0 ? ` +${item.queue.length}Q` : ''}` : undefined
            });
          }
        }
