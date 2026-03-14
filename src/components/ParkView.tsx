@@ -5,6 +5,7 @@ import { GuestInspector } from './ParkView/GuestInspector';
 import { ItemInspector } from './ParkView/ItemInspector';
 import { BuildToolbar } from './ParkView/BuildToolbar';
 import { ITEM_DEFINITIONS } from '../game/items';
+import { GAME_CONFIG } from '../game/constants';
 
 export function ParkView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -173,8 +174,8 @@ export function ParkView() {
       <div className="flex-1 flex items-center justify-center p-4 relative overflow-hidden">
         <canvas 
           ref={canvasRef} 
-          width={800} 
-          height={600} 
+          width={GAME_CONFIG.CANVAS_WIDTH}
+          height={GAME_CONFIG.CANVAS_HEIGHT}
           onClick={handleCanvasClick}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
