@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { gameStateManager } from '../game/gameState';
+import { gameStateManager, SimSpeed } from '../game/gameState';
 
 export function HUD() {
   const [state, setState] = useState(gameStateManager.state);
@@ -30,6 +30,23 @@ export function HUD() {
         {state.currentLocation && (
           <div className="text-sm text-zinc-400">
             Location: <span className="text-white">{state.currentLocation.name}</span>
+          </div>
+        )}
+        {state.phase === 'OPERATION' && (
+          <div className="flex items-center gap-1">
+            {(['normal', 'fast'] as SimSpeed[]).map(speed => (
+              <button
+                key={speed}
+                onClick={() => gameStateManager.update({ simSpeed: speed })}
+                className={`px-2 py-0.5 text-xs font-bold rounded transition-colors ${
+                  state.simSpeed === speed
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-zinc-700 text-zinc-400 hover:bg-zinc-600'
+                }`}
+              >
+                {speed === 'normal' ? '1x' : '2x'}
+              </button>
+            ))}
           </div>
         )}
         <div className="text-sm text-zinc-400">

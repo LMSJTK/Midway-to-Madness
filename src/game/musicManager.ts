@@ -8,11 +8,13 @@ const PARK_PHASES = new Set(['SETUP', 'OPERATION', 'TEARDOWN']);
 
 class MusicManager {
   private audio: HTMLAudioElement | null = null;
+  private sourceFiles: string[] = [];
   private playlist: string[] = [];
   private currentIndex = 0;
   private isPlaying = false;
   private volume = 0.4;
   private manifestLoaded = false;
+  private wasInPark = false;
 
   async loadPlaylist() {
     if (this.manifestLoaded) return;
@@ -20,7 +22,8 @@ class MusicManager {
       const resp = await fetch('/music/playlist.json');
       if (!resp.ok) return;
       const files: string[] = await resp.json();
-      this.playlist = shuffle(files.map(f => `/music/${f}`));
+      this.sourceFiles = files.map(f => `/music/${f}`);
+      this.playlist = shuffle(this.sourceFiles);
       this.manifestLoaded = true;
     } catch {
       // No playlist available — that's fine, user hasn't added songs yet
@@ -28,18 +31,32 @@ class MusicManager {
   }
 
   onPhaseChange(phase: string) {
-    if (PARK_PHASES.has(phase)) {
-      this.play();
+    const inPark = PARK_PHASES.has(phase);
+    if (inPark && !this.wasInPark) {
+      // Entering the park — reshuffle so each visit feels different
+      this.reshuffle();
+      this.play(true);
+    } else if (inPark && this.wasInPark) {
+      // Staying in park (e.g. SETUP -> OPERATION) — just resume
+      this.play(false);
     } else {
       this.pause();
     }
+    this.wasInPark = inPark;
   }
 
-  private async play() {
-    if (this.playlist.length === 0) {
+  private reshuffle() {
+    if (this.sourceFiles.length === 0) return;
+    this.playlist = shuffle(this.sourceFiles);
+    this.currentIndex = 0;
+  }
+
+  private async play(loadNew: boolean) {
+    if (this.sourceFiles.length === 0) {
       await this.loadPlaylist();
     }
-    if (this.playlist.length === 0 || this.isPlaying) return;
+    if (this.playlist.length === 0) return;
+    if (this.isPlaying && !loadNew) return;
 
     this.isPlaying = true;
     if (!this.audio) {
@@ -47,7 +64,9 @@ class MusicManager {
       this.audio.volume = this.volume;
       this.audio.addEventListener('ended', () => this.next());
     }
-    this.loadCurrentTrack();
+    if (loadNew) {
+      this.loadCurrentTrack();
+    }
     // Browser may block autoplay until user interaction — silently catch
     this.audio.play().catch(() => {});
   }

@@ -41,6 +41,28 @@ export function ParkView() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (state.phase !== 'SETUP' || !selectedTool) {
+      engine.ghost = null;
+      return;
+    }
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const screenX = (e.clientX - rect.left - engine.camera.x) / engine.camera.zoom;
+    const screenY = (e.clientY - rect.top - engine.camera.y) / engine.camera.zoom;
+    const logicalPos = fromIso(screenX, screenY);
+    engine.ghost = { itemDefId: selectedTool, x: logicalPos.x, y: logicalPos.y };
+  };
+
+  const handleMouseLeave = () => {
+    engine.ghost = null;
+  };
+
+  // Clear ghost when tool is deselected
+  useEffect(() => {
+    if (!selectedTool) engine.ghost = null;
+  }, [selectedTool]);
+
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     const zoomSensitivity = 0.001;
     const delta = -e.deltaY * zoomSensitivity;
@@ -154,6 +176,8 @@ export function ParkView() {
           width={800} 
           height={600} 
           onClick={handleCanvasClick}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
           onWheel={handleWheel}
           className={`bg-zinc-800 border-2 border-zinc-700 rounded-lg shadow-2xl ${state.phase === 'SETUP' && selectedTool ? 'cursor-crosshair' : 'cursor-default'}`}
         />

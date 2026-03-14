@@ -2,6 +2,8 @@ import { ITEM_DEFINITIONS, STOCK_CATEGORIES } from './items';
 import { Biome, SceneryItem, generateScenery } from './scenery';
 
 export type Phase = 'MAP' | 'BIDDING' | 'SETUP' | 'OPERATION' | 'TEARDOWN' | 'SUMMARY';
+export type SimSpeed = 'normal' | 'fast';
+export const SIM_SPEED_MULTIPLIERS: Record<SimSpeed, number> = { normal: 0.5, fast: 1 };
 
 export interface Location {
   id: string;
@@ -73,6 +75,7 @@ export class StateManager {
     placedItems: [] as PlacedItem[],
     sceneryItems: [] as SceneryItem[],
     priceOverrides: {} as Record<string, number>,
+    simSpeed: 'normal' as SimSpeed,
     selectedGuestId: null as number | null,
     selectedItemId: null as string | null,
     stats: {

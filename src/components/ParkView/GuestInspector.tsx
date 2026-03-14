@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { engine } from '../../game/engine';
 import { gameStateManager } from '../../game/gameState';
 import { Guest } from '../../game/ecs';
+import { spriteRegistry } from '../../game/spriteRegistry';
 
 const formatTime = (time: number) => {
   const hours = Math.floor(time);
@@ -39,9 +40,18 @@ export function GuestInspector({ entityId }: { entityId: number }) {
 
   return (
     <div className="absolute bottom-8 left-8 bg-zinc-800/90 p-4 border border-zinc-700 rounded-xl shadow-xl backdrop-blur-sm w-64 z-10">
-      <div className="flex justify-between items-center mb-2">
-        <h3 className="text-lg font-bold text-blue-400">Guest #{entityId}</h3>
-        <button 
+      <div className="flex justify-between items-start mb-2">
+        <div className="flex items-center gap-3">
+          {guestData.portraitIndex >= 0 && spriteRegistry.guestPortraits[guestData.portraitIndex] && (
+            <img
+              src={spriteRegistry.guestPortraits[guestData.portraitIndex]}
+              alt="Guest portrait"
+              className="w-12 h-12 rounded-full object-cover border-2 border-blue-400 bg-zinc-700"
+            />
+          )}
+          <h3 className="text-lg font-bold text-blue-400">Guest #{entityId}</h3>
+        </div>
+        <button
           onClick={() => gameStateManager.update({ selectedGuestId: null })}
           className="text-zinc-500 hover:text-white"
         >
