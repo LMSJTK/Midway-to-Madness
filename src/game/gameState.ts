@@ -50,6 +50,7 @@ export interface PlacedItem {
   stock: number;
   isBroken: boolean;
   condition: number;
+  queue: number[];       // entity IDs of guests waiting in line
 }
 
 export class StateManager {
@@ -174,6 +175,7 @@ export class StateManager {
       stock: STOCK_CATEGORIES.includes(def.category) ? Math.round(50 + def.quality * 1.5) : 0,
       isBroken: false,
       condition: 100,
+      queue: [],
     };
 
     this.state.placedItems.push(newItem);

@@ -8,10 +8,71 @@ import { GAME_CONFIG } from './constants';
 export interface Position { x: number; y: number; }
 export interface Velocity { vx: number; vy: number; }
 export interface Renderable { type: 'guest' | 'ride' | 'stall'; color: string; size: number; }
-export interface Guest { money: number; initialMoney: number; hunger: number; bladder: number; excitement: number; targetId: string | null; state: 'wandering' | 'walking' | 'riding' | 'eating' | 'leaving'; timer: number; arrivalTime: number; portraitIndex: number; }
+export interface Guest { money: number; initialMoney: number; hunger: number; bladder: number; excitement: number; targetId: string | null; state: 'wandering' | 'walking' | 'queued' | 'riding' | 'eating' | 'leaving'; timer: number; arrivalTime: number; portraitIndex: number; maxWaitTolerance: number; }
 export interface Ride { id: string; type: string; capacity: number; currentRiders: number; duration: number; timer: number; ticketPrice: number; excitement: number; x: number; y: number; w: number; h: number; }
 export interface StaffMember { type: 'maintenance' | 'sanitation'; targetId: string | number | null; state: 'wandering' | 'walking' | 'working'; timer: number; }
 export interface Trash {}
+
+/** Shared logic: guest boards a ride/facility and pays */
+function boardGuest(
+  guest: Guest,
+  target: import('./gameState').PlacedItem,
+  _entity: number,
+  vel: Velocity,
+  state: typeof gameStateManager.state,
+) {
+  const category = target.type as ItemCategory;
+  guest.money -= target.ticketPrice;
+  target.currentRiders++;
+  target.customersToday++;
+  target.patronsServed++;
+  target.revenueToday += target.ticketPrice;
+  if (STOCK_CATEGORIES.includes(category)) target.stock--;
+
+  // Update economy
+  const netRevenue = target.ticketPrice * (1 - (state.currentLocation?.revenueShare || 0));
+  state.stats.revenueToday += netRevenue;
+  state.money += netRevenue;
+
+  // Quality-based breakdown
+  const def = ITEM_DEFINITIONS[target.itemDefId];
+  const quality = def?.quality ?? 50;
+  if (target.patronsServed > quality) {
+    const excess = target.patronsServed - quality;
+    const breakdownChance = 1 - Math.exp(-excess * 0.05);
+    if (Math.random() < breakdownChance) {
+      target.isBroken = true;
+      target.condition = 0;
+    }
+  }
+
+  if (target.type === 'food') {
+    guest.state = 'eating';
+    guest.timer = 5;
+    guest.hunger = 0;
+    target.currentRiders--;
+  } else if (target.type === 'bathroom') {
+    guest.state = 'eating';
+    guest.timer = 2;
+    guest.bladder = 0;
+    target.currentRiders--;
+  } else if (target.type === 'gameStall') {
+    guest.state = 'eating';
+    guest.timer = 4;
+    guest.excitement += target.excitement;
+    target.currentRiders--;
+  } else if (target.type === 'shop') {
+    guest.state = 'eating';
+    guest.timer = 3;
+    target.currentRiders--;
+  } else {
+    guest.state = 'riding';
+    guest.timer = target.duration;
+    guest.excitement += target.excitement;
+  }
+  vel.vx = 0;
+  vel.vy = 0;
+}
 
 export function GuestSpawningSystem(world: World, dt: number) {
   const state = gameStateManager.state;
@@ -51,6 +112,7 @@ export function GuestSpawningSystem(world: World, dt: number) {
       timer: 0,
       arrivalTime: state.time,
       portraitIndex: portraitCount > 0 ? Math.floor(Math.random() * portraitCount) : -1,
+      maxWaitTolerance: 3 + Math.random() * 10, // 3-13 guests they'll wait behind
     });
     state.stats.guestsToday++;
   }
@@ -76,6 +138,11 @@ export function GuestAISystem(world: World, dt: number) {
     }
 
     if (state.time >= 22) {
+      // Remove from queue if queued
+      if (guest.state === 'queued' && guest.targetId) {
+        const target = state.placedItems.find(i => i.id === guest.targetId);
+        if (target) target.queue = target.queue.filter(id => id !== entity);
+      }
       guest.state = 'leaving';
     }
 
@@ -143,7 +210,17 @@ export function GuestAISystem(world: World, dt: number) {
             }
 
             if (guest.money < item.ticketPrice) score = -Infinity;
-            if (item.capacity > 0 && item.currentRiders >= item.capacity) score = -Infinity;
+            // If ride is full, penalize by queue length instead of excluding entirely.
+            // Guest will still consider it if the queue is short enough for their tolerance.
+            if (item.capacity > 0 && item.currentRiders >= item.capacity) {
+              const queueLen = item.queue.length;
+              if (queueLen >= item.capacity || queueLen >= guest.maxWaitTolerance) {
+                score = -Infinity; // Queue full or too long for this guest
+              } else {
+                // Penalize score by how long the wait will be
+                score -= queueLen * 8;
+              }
+            }
             
             if (score > bestScore) {
               bestScore = score;
@@ -187,61 +264,23 @@ export function GuestAISystem(world: World, dt: number) {
         const isInstant = INSTANT_CATEGORIES.includes(category);
         const hasCapacity = isInstant || target.currentRiders < target.capacity;
         const hasStock = !STOCK_CATEGORIES.includes(category) || target.stock > 0;
-        if (guest.money >= target.ticketPrice && hasCapacity && hasStock && !target.isBroken) {
-          guest.money -= target.ticketPrice;
-          target.currentRiders++;
-          target.customersToday++;
-          target.patronsServed++;
-          target.revenueToday += target.ticketPrice;
-          if (STOCK_CATEGORIES.includes(category)) target.stock--;
-
-          // Update economy
-          const netRevenue = target.ticketPrice * (1 - (state.currentLocation?.revenueShare || 0));
-          state.stats.revenueToday += netRevenue;
-          state.money += netRevenue;
-
-          // Quality-based breakdown: once patronsServed exceeds quality threshold,
-          // each additional patron has an increasing chance of causing a breakdown.
-          const def = ITEM_DEFINITIONS[target.itemDefId];
-          const quality = def?.quality ?? 50;
-          if (target.patronsServed > quality) {
-            const excess = target.patronsServed - quality;
-            // Breakdown chance ramps up: 5% at 1 over, ~40% at 10 over, ~65% at 20 over
-            const breakdownChance = 1 - Math.exp(-excess * 0.05);
-            if (Math.random() < breakdownChance) {
-              target.isBroken = true;
-              target.condition = 0;
-            }
-          }
-
-          if (target.type === 'food') {
-            guest.state = 'eating';
-            guest.timer = 5;
-            guest.hunger = 0;
-            target.currentRiders--;
-          } else if (target.type === 'bathroom') {
-            guest.state = 'eating';
-            guest.timer = 2;
-            guest.bladder = 0;
-            target.currentRiders--;
-          } else if (target.type === 'gameStall') {
-            guest.state = 'eating'; // Reuse for quick interactions
-            guest.timer = 4;
-            guest.excitement += target.excitement;
-            target.currentRiders--;
-          } else if (target.type === 'shop') {
-            guest.state = 'eating';
-            guest.timer = 3;
-            target.currentRiders--;
+        if (guest.money >= target.ticketPrice && hasStock && !target.isBroken) {
+          if (hasCapacity) {
+            // Board immediately
+            boardGuest(guest, target, entity, vel, state);
+          } else if (target.queue.length < target.capacity && target.queue.length < guest.maxWaitTolerance) {
+            // Ride full but queue has room and guest is willing to wait
+            guest.state = 'queued';
+            target.queue.push(entity);
+            vel.vx = 0;
+            vel.vy = 0;
           } else {
-            guest.state = 'riding';
-            guest.timer = target.duration;
-            guest.excitement += target.excitement;
+            // Queue too long or full
+            guest.state = 'wandering';
+            guest.timer = 0;
           }
-          vel.vx = 0;
-          vel.vy = 0;
         } else {
-          // Can't afford or full
+          // Can't afford, out of stock, or broken
           guest.state = 'wandering';
           guest.timer = 0;
         }
@@ -249,6 +288,23 @@ export function GuestAISystem(world: World, dt: number) {
         vel.vx = (dx / dist) * 60;
         vel.vy = (dy / dist) * 60;
       }
+    } else if (guest.state === 'queued') {
+      // Waiting in line — check if ride broke, was removed, or we should leave
+      const target = state.placedItems.find(i => i.id === guest.targetId);
+      if (!target || !target.built || target.isBroken) {
+        // Ride gone or broken — leave queue
+        if (target) target.queue = target.queue.filter(id => id !== entity);
+        guest.state = 'wandering';
+        guest.timer = 0;
+        guest.targetId = null;
+        continue;
+      }
+      // Check if we're first in line and ride has capacity
+      if (target.queue[0] === entity && target.currentRiders < target.capacity) {
+        target.queue.shift();
+        boardGuest(guest, target, entity, vel, state);
+      }
+      // Otherwise keep waiting (vel already 0)
     } else if (guest.state === 'riding' || guest.state === 'eating') {
       guest.timer -= dt;
       if (guest.timer <= 0) {

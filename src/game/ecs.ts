@@ -3,7 +3,7 @@ export type Entity = number;
 export interface Position { x: number; y: number; }
 export interface Velocity { vx: number; vy: number; }
 export interface Renderable { type: 'guest' | 'ride' | 'stall' | 'staff' | 'trash'; color: string; size: number; }
-export interface Guest { money: number; initialMoney: number; hunger: number; bladder: number; excitement: number; targetId: string | null; state: 'wandering' | 'walking' | 'riding' | 'eating' | 'leaving'; timer: number; arrivalTime: number; portraitIndex: number; }
+export interface Guest { money: number; initialMoney: number; hunger: number; bladder: number; excitement: number; targetId: string | null; state: 'wandering' | 'walking' | 'queued' | 'riding' | 'eating' | 'leaving'; timer: number; arrivalTime: number; portraitIndex: number; maxWaitTolerance: number; }
 export interface StaffMember { type: 'maintenance' | 'sanitation'; targetId: string | number | null; state: 'wandering' | 'walking' | 'working'; timer: number; }
 export interface Trash {}
 
