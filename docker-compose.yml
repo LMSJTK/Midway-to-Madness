@@ -38,9 +38,24 @@ services:
     build: ./rembg
     ports:
       - "5000:5000"
+    volumes:
+      # Model weights are downloaded on first boot; keep them out of the
+      # container layer so a rebuild doesn't re-fetch them.
+      - rembg-models:/models
+    # A ceiling so a runaway inference kills this container instead of the host.
+    # `restart` (not deploy.restart_policy, which only applies under swarm) then
+    # brings it back, bounded so a genuine failure doesn't loop forever.
+    mem_limit: 2g
+    memswap_limit: 2g
+    restart: on-failure:3
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 10s
       timeout: 5s
       retries: 12
-      start_period: 60s
+      # The model download happens before the server binds, so a first boot on a
+      # cold volume needs more slack than a warm one.
+      start_period: 120s
+
+volumes:
+  rembg-models:
