@@ -28,26 +28,26 @@ The phases below are ordered so each one is visible to a player before the next 
 
 Ordered by player impact. Each row is a one-PR fix; the first three could ship together.
 
-| # | Symptom | Cause | Fix |
-|---|---------|-------|-----|
-| 1 | HUD clock and cash stop updating from day 2 onward | `TimeSystem` compares `state.time` with a module-level `lastNotifyTime` that never resets. On day 2 the clock restarts at 8 while the marker sits near 22, so no notify fires until teardown. | Reset the marker in `resetDay()` or keep it in state. |
-| 2 | Roller Coaster and Pizza Oven can never unlock | `isItemUnlocked` checks `visitedLocations`, but nothing ever appends to it. | Push the location id when a contract is signed. |
-| 3 | `npm run lint` fails with 15 errors | `systems.ts` re-declares Position, Velocity, Renderable, Guest, Staff and Trash (diverging from `ecs.ts`; its Renderable lacks `staff` and `trash`) and calls `world.addComponent<Position>(…)` with a type where a registry key is expected. | Delete the duplicates, import from `ecs.ts`, drop the explicit generic. |
-| 4 | "2x" speed halves what guests get done | Only the clock and spawn rate use `SIM_SPEED_MULTIPLIERS`. Needs, ride and eat timers, staff work timers and `MovementSystem` use raw wall-clock dt. At 2x a day lasts 84 real seconds but guests still walk 60 units/s and ride for 5–12 real seconds. Spawning is also capped at one guest per tick, so the State Expo cannot reach 3,000 guests at 2x. | Scale dt once in `GameEngine.update`, remove the per-system multipliers, allow several spawns per tick. This also unblocks a real 4x. |
-| 5 | Rides fall into a break-repair loop late in the day | Breakdown chance grows with `patronsServed − quality`; repair resets `condition` but not `patronsServed`. | Reset wear on repair (fully or partially). |
-| 6 | Guests stop riding after about two rides | Excitement only rises, and ride scores use `(100 − excitement)`. Past 100 every ride scores negative and the guest wanders until closing. | Decay excitement over time, or score on a recovering "fun deficit". |
-| 7 | Guests never leave before 10 PM | The only transition to `leaving` is `time >= 22`. With #6, bored and broke guests pile up all day (up to 3,000 at the State Expo). | Leave when broke, satisfied, or after a stay length. This is also the main performance lever. |
-| 8 | Soft-lock when cash drops below $500 | The map screen disables every contract and there is no other income; the failure message is an `alert()`. | Game-over or loan path (Phase 2); replace `alert` with in-game UI. |
-| 9 | Items can be placed on each other and off the lot | `placeItem` checks inventory only. | Footprint overlap and bounds check; red ghost when invalid. |
-| 10 | Summary shows revenue only | `stats.expensesToday` has no writers, so profit is invisible. | Wire fee, travel, wages and restock into it (Phase 2 ledger). |
-| 11 | The Gemini key is compiled into the browser bundle | `vite.config.ts` defines `process.env.GEMINI_API_KEY` into the client, and compose passes the key to the frontend container, but nothing in `src/` reads it. | Remove the define and the env pass-through. |
-| 12 | SQLite journal files are committed | `assets.db-wal` and `assets.db-shm` are in git. | Gitignore them; decide deliberately whether `assets.db` is source or build output. |
-| 13 | Guest portraits cannot reach the game | The editor offers a "Guest Portrait" category, but the DB `CHECK` on `category` rejects it, and the registry looks for entity type `guest_portrait`. | Add the category to the constraint (or map it to `guest`) and set the entity type. |
-| 14 | Dev mode can run two game loops | `GameEngine.start()` checks `isRunning` before `await spriteRegistry.load()`, so React StrictMode's mount-unmount-mount starts two loops and the sim runs at double speed in `npm run dev`. | Set a `starting` flag before the await, or make `stop()` cancel a pending start. |
-| 15 | Stale grid constants | `TILE_WIDTH`/`TILE_HEIGHT` (40/20) are unused by the engine, and the editor's alignment grid uses the same values. A footprint cell is 50 logical units, a 100×50 px diamond, so the editor grid is drawn at the wrong scale. | One `CELL = 50` constant, used by both. |
-| 16 | Stale identity | `index.html` title is "My Google AI Studio App", the package is `react-example`, the README is AI Studio boilerplate, the HUD shows raw phase enums. | Rename, write a real README (game, editor, compose), friendly phase labels. |
-| 17 | Editor writes files from unsanitized request fields | `generate.ts` joins `category` and `assetId` straight into paths. | Slug-whitelist both. |
-| 18 | A production build renders a blank page under `vite preview` | The `/assets` dev proxy (meant to reach the sprite server) is inherited by preview and captures Vite's own bundle directory, `dist/assets/`, so the app's JS and CSS return 500. Any host that honors `server.proxy` sees the same. | Set `build.assetsDir` to something like `static`, or move sprites out of `/assets`. |
+| # | Impact | Symptom | Cause | Fix |
+|---|--------|---------|-------|-----|
+| 1 | High | HUD clock and cash stop updating from day 2 onward | `TimeSystem` compares `state.time` with a module-level `lastNotifyTime` that never resets. On day 2 the clock restarts at 8 while the marker sits near 22, so no notify fires until teardown. | Reset the marker in `resetDay()` or keep it in state. |
+| 2 | High | Roller Coaster and Pizza Oven can never unlock | `isItemUnlocked` checks `visitedLocations`, but nothing ever appends to it. | Push the location id when a contract is signed. |
+| 3 | Medium | `npm run lint` fails with 15 errors | `systems.ts` re-declares Position, Velocity, Renderable, Guest, Staff and Trash (diverging from `ecs.ts`; its Renderable lacks `staff` and `trash`) and calls `world.addComponent<Position>(…)` with a type where a registry key is expected. | Delete the duplicates, import from `ecs.ts`, drop the explicit generic. |
+| 4 | High | "2x" speed halves what guests get done | Only the clock and spawn rate use `SIM_SPEED_MULTIPLIERS`. Needs, ride and eat timers, staff work timers and `MovementSystem` use raw wall-clock dt. At 2x a day lasts 84 real seconds but guests still walk 60 units/s and ride for 5–12 real seconds. Spawning is also capped at one guest per tick, so the State Expo cannot reach 3,000 guests at 2x. | Scale dt once in `GameEngine.update`, remove the per-system multipliers, allow several spawns per tick. This also unblocks a real 4x. |
+| 5 | Medium | Rides fall into a break-repair loop late in the day | Breakdown chance grows with `patronsServed − quality`; repair resets `condition` but not `patronsServed`. | Reset wear on repair (fully or partially). |
+| 6 | High | Guests stop riding after about two rides | Excitement only rises, and ride scores use `(100 − excitement)`. Past 100 every ride scores negative and the guest wanders until closing. | Decay excitement over time, or score on a recovering "fun deficit". |
+| 7 | High | Guests never leave before 10 PM | The only transition to `leaving` is `time >= 22`. With #6, bored and broke guests pile up all day (up to 3,000 at the State Expo). | Leave when broke, satisfied, or after a stay length. This is also the main performance lever. |
+| 8 | Medium | Soft-lock when cash drops below $500 | The map screen disables every contract and there is no other income; the failure message is an `alert()`. | Game-over or loan path (Phase 2); replace `alert` with in-game UI. |
+| 9 | Medium | Items can be placed on each other and off the lot | `placeItem` checks inventory only. | Footprint overlap and bounds check; red ghost when invalid. |
+| 10 | Medium | Summary shows revenue only | `stats.expensesToday` has no writers, so profit is invisible. | Wire fee, travel, wages and restock into it (Phase 2 ledger). |
+| 11 | High | The Gemini key is compiled into the browser bundle | `vite.config.ts` defines `process.env.GEMINI_API_KEY` into the client, and compose passes the key to the frontend container, but nothing in `src/` reads it. | Remove the define and the env pass-through. |
+| 12 | Low | SQLite journal files are committed | `assets.db-wal` and `assets.db-shm` are in git. | Gitignore them; decide deliberately whether `assets.db` is source or build output. |
+| 13 | Low | Guest portraits cannot reach the game | The editor offers a "Guest Portrait" category, but the DB `CHECK` on `category` rejects it, and the registry looks for entity type `guest_portrait`. | Add the category to the constraint (or map it to `guest`) and set the entity type. |
+| 14 | Medium | Dev mode can run two game loops | `GameEngine.start()` checks `isRunning` before `await spriteRegistry.load()`, so React StrictMode's mount-unmount-mount starts two loops and the sim runs at double speed in `npm run dev`. | Set a `starting` flag before the await, or make `stop()` cancel a pending start. |
+| 15 | Low | Stale grid constants | `TILE_WIDTH`/`TILE_HEIGHT` (40/20) are unused by the engine, and the editor's alignment grid uses the same values. A footprint cell is 50 logical units, a 100×50 px diamond, so the editor grid is drawn at the wrong scale. | One `CELL = 50` constant, used by both. |
+| 16 | Low | Stale identity | `index.html` title is "My Google AI Studio App", the package is `react-example`, the README is AI Studio boilerplate, the HUD shows raw phase enums. | Rename, write a real README (game, editor, compose), friendly phase labels. |
+| 17 | Low | Editor writes files from unsanitized request fields | `generate.ts` joins `category` and `assetId` straight into paths. | Slug-whitelist both. |
+| 18 | High | A production build renders a blank page under `vite preview` | The `/assets` dev proxy (meant to reach the sprite server) is inherited by preview and captures Vite's own bundle directory, `dist/assets/`, so the app's JS and CSS return 500. Any host that honors `server.proxy` sees the same. | Set `build.assetsDir` to something like `static`, or move sprites out of `/assets`. |
 
 ## 4. Phase 1 — Make it look like a carnival (2–3 weeks)
 
@@ -57,21 +57,27 @@ Visual work that needs no new art comes first; art through the editor follows.
 
 Every manifest anchor is `{0,0}`, so `drawSpriteIso` places each sprite's **top-left** at the iso projection of the item's logical top-left corner, which is the *top vertex* of the footprint diamond. Sprites hang down and to the right of their lot. Guests walk to the lot's bottom edge and depth sorting uses the lot, so people appear to stand in the wrong place relative to the art.
 
+Seen in a build of `main` (day 1 at Smallville Fair, below): the capacity labels, which are drawn at each footprint's center, float 50–100 px up and to the left of their sprites, and guests walk to the footprint's edge rather than to the art.
+
+![Day 1 at Smallville Fair during setup. The labels mark the real footprints; the art sits down and to the right of them, the Juggling Act is still a block, and a rock sits under it.](images/day1-smallville-setup.png)
+
 - Define the anchor as *the sprite pixel that sits on the footprint's ground center*, and draw at `toIso(x + w/2, y + h/2) − anchor`.
 - When an anchor is unset, default to bottom-center minus half the base diamond: `{ x: img.width / 2, y: img.height − (w + h) / 4 }` in sprite pixels for a `w × h` logical footprint (a 1×1 lot is a 100×50 px diamond).
 - In the editor's `SpriteCanvas`, overlay the *actual* footprint diamond at sprite scale so the anchor tool aligns art to it. Set anchors for the 19 exported sprites and re-export.
 
 ### 4.2 Sprite scale versus footprint
 
-Generated sprite sizes come from `SPRITE_SIZE_MAP` (1×1 → 100 px, 2×2 → 150 px, 3×3 → 200 px), but the footprint diamonds are 100, 200 and 300 px wide. A 3×3 Ferris Wheel covers two-thirds of its lot, so queues form on empty grass. Derive the size from the footprint for new generations (`width = (w + h) × 50`, height = half the width plus headroom for tall rides), and scale existing art at draw time to the footprint width so current sprites work today.
+Generated sprite sizes come from `SPRITE_SIZE_MAP` (1×1 → 100 px, 2×2 → 150 px, 3×3 → 200 px), but the footprint diamonds are 100, 200 and 300 px wide. A 3×3 Ferris Wheel covers two-thirds of its lot, so queues form on empty grass. Derive the size from the footprint for new generations (`width = (w + h) × 50`, height = half the width plus headroom for tall rides), and scale existing art at draw time to the footprint width so current sprites work today. In the same build the 3×3 Ferris Wheel renders visibly smaller than the 2×2 Teacups.
 
 ### 4.3 Camera and canvas
 
-The canvas is a fixed 1600×1200 element with no CSS sizing, so it overflows most viewports. The initial camera (0, 0, zoom 1) puts the entrance on the bottom edge and cuts off the lot's left, right and bottom corners. Size the canvas to its container (ResizeObserver plus devicePixelRatio), start centered on the entrance at a zoom that fits the lot, add drag-to-pan and WASD, clamp panning to the lot, and add a minimap.
+The canvas is a fixed 1600×1200 element with no CSS sizing, so it overflows most viewports. The initial camera (0, 0, zoom 1) puts the entrance on the bottom edge and cuts off the lot's left, right and bottom corners. Size the canvas to its container (ResizeObserver plus devicePixelRatio), start centered on the entrance at a zoom that fits the lot, add drag-to-pan and WASD, clamp panning to the lot, and add a minimap. In a 1440×900 window the canvas element starts at (−82, −120) and the entrance is below the fold.
 
 ### 4.4 People
 
 Guests and staff are 4 px circles. Use the editor's `guest` and `staff` categories: four to six guest outfits with two facings (mirror for the other two), two staff uniforms, a three-frame walk. Portraits follow once bug #13 is fixed; the inspector already renders `guestPortraits`.
+
+![The same lot at 11 AM. Guests are blue dots walking a straight line from an entrance that is off-screen.](images/day1-smallville-operation.png)
 
 ### 4.5 Visible queues and states
 
@@ -84,6 +90,7 @@ Replace the single flat ground block with tiles (the unreferenced `terrain/grass
 ### 4.7 Labels and hygiene
 
 Move labels into a screen-space layer with background pills, shown on hover, selection, or above 1.2x zoom. 23 PNGs in `public/assets/sprites` are not referenced by the manifest: bind or delete them.
+Among built-in items only the Juggling Act lacks a sprite, but 7 of 12 scenery types (palm tree, cactus, lamp post, flower patch, trash can, sand dune, fire hydrant) still draw as colored blocks, so lots mix painterly art with flat shapes.
 
 ## 5. Phase 2 — Make it a game (3–4 weeks)
 
