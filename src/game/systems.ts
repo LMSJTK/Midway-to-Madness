@@ -1,25 +1,53 @@
-import { World, Entity } from './ecs';
-import { gameStateManager } from './gameState';
+import { World, Entity, Velocity, Guest } from './ecs';
+import { gameStateManager, PlacedItem } from './gameState';
 import { INSTANT_CATEGORIES, STOCK_CATEGORIES, ITEM_DEFINITIONS, ItemCategory } from './items';
-import { SIM_SPEED_MULTIPLIERS } from './gameState';
 import { spriteRegistry } from './spriteRegistry';
-import { GAME_CONFIG } from './constants';
+import { GAME_CONFIG, DAY_LENGTH_SECONDS } from './constants';
 
-export interface Position { x: number; y: number; }
-export interface Velocity { vx: number; vy: number; }
-export interface Renderable { type: 'guest' | 'ride' | 'stall'; color: string; size: number; }
-export interface Guest { money: number; initialMoney: number; hunger: number; bladder: number; excitement: number; targetId: string | null; state: 'wandering' | 'walking' | 'queued' | 'riding' | 'eating' | 'leaving'; timer: number; arrivalTime: number; portraitIndex: number; maxWaitTolerance: number; }
-export interface Ride { id: string; type: string; capacity: number; currentRiders: number; duration: number; timer: number; ticketPrice: number; excitement: number; x: number; y: number; w: number; h: number; }
-export interface StaffMember { type: 'maintenance' | 'sanitation'; targetId: string | number | null; state: 'wandering' | 'walking' | 'working'; timer: number; }
-export interface Trash {}
+type GameState = typeof gameStateManager.state;
+
+/**
+ * Excitement bleeds off so a guest who has ridden everything wants another go
+ * later in the day. Without this, ride scores — which are driven by
+ * (100 - excitement) — go negative for good after two or three rides.
+ */
+const EXCITEMENT_DECAY_PER_SECOND = 4;
+
+/** Release any ride slot or queue place the guest is holding. */
+function detachFromTarget(state: GameState, guest: Guest, entity: Entity) {
+  const target = guest.targetId ? state.placedItems.find(i => i.id === guest.targetId) : undefined;
+  if (target) {
+    if (guest.state === 'queued') {
+      target.queue = target.queue.filter(id => id !== entity);
+    } else if (guest.state === 'riding' && !INSTANT_CATEGORIES.includes(target.type as ItemCategory)) {
+      target.currentRiders = Math.max(0, target.currentRiders - 1);
+    }
+  }
+  guest.targetId = null;
+}
+
+/**
+ * Cheapest thing a guest could still spend money on right now. A guest who
+ * cannot afford this has nothing left to do and goes home. Infinity means the
+ * park has nothing open at all, which also sends them home.
+ */
+function cheapestTicket(state: GameState): number {
+  let min = Infinity;
+  for (const item of state.placedItems) {
+    if (!item.built || item.isBroken) continue;
+    if (STOCK_CATEGORIES.includes(item.type as ItemCategory) && item.stock <= 0) continue;
+    if (item.ticketPrice < min) min = item.ticketPrice;
+  }
+  return min;
+}
 
 /** Shared logic: guest boards a ride/facility and pays */
 function boardGuest(
   guest: Guest,
-  target: import('./gameState').PlacedItem,
+  target: PlacedItem,
   _entity: number,
   vel: Velocity,
-  state: typeof gameStateManager.state,
+  state: GameState,
 ) {
   const category = target.type as ItemCategory;
   guest.money -= target.ticketPrice;
@@ -74,54 +102,61 @@ function boardGuest(
   vel.vy = 0;
 }
 
+function spawnGuest(world: World, state: GameState) {
+  const entity = world.createEntity();
+  world.addComponent(entity, 'Position', { x: GAME_CONFIG.ENTRANCE_X, y: GAME_CONFIG.ENTRANCE_Y });
+  world.addComponent(entity, 'Velocity', { vx: 0, vy: -GAME_CONFIG.WALK_SPEED });
+  world.addComponent(entity, 'Renderable', { type: 'guest', color: '#3b82f6', size: 4 });
+  const initialMoney = 50 + Math.random() * 100;
+  const portraitCount = spriteRegistry.guestPortraits.length;
+  world.addComponent(entity, 'Guest', {
+    money: initialMoney,
+    initialMoney,
+    hunger: Math.random() * 50,
+    bladder: Math.random() * 30,
+    excitement: 0,
+    targetId: null,
+    state: 'wandering',
+    timer: 0,
+    arrivalTime: state.time,
+    portraitIndex: portraitCount > 0 ? Math.floor(Math.random() * portraitCount) : -1,
+    maxWaitTolerance: 3 + Math.random() * 10, // 3-13 guests they'll wait behind
+    maxStayHours: 3 + Math.random() * 2,      // in-game hours before heading home
+  });
+  state.stats.guestsToday++;
+}
+
 export function GuestSpawningSystem(world: World, dt: number) {
   const state = gameStateManager.state;
   if (state.phase !== 'OPERATION') return;
-  if (state.time >= 21) return; // Stop spawning near closing
+  if (state.time >= GAME_CONFIG.LAST_ARRIVAL) return; // Stop spawning near closing
 
-  const currentGuests = world.getEntitiesWith(['Guest']).length;
   const expected = state.currentLocation?.expectedGuests || 100;
-  
-  // Total real time for a day is 14 in-game hours * 6 real seconds/hour = 84 real seconds.
-  // Average spawn rate = expected / 84 guests per real second.
-  // Peak factor makes it higher in the middle of the day.
-  const peakFactor = Math.max(0.1, 1 - Math.abs(state.time - 14) / 6);
-  // Normalize peak factor so the average over the day is roughly 1.
-  // The integral of max(0.1, 1 - |t-14|/6) from 8 to 22 is roughly 6. 
-  // Average value is 6 / 14 = 0.42. So we divide by 0.42 to normalize.
-  const normalizedPeak = peakFactor / 0.42;
-  
-  const speedMul = SIM_SPEED_MULTIPLIERS[state.simSpeed] ?? 1;
-  const spawnChance = (expected / 84) * normalizedPeak * dt * speedMul;
 
-  if (Math.random() < spawnChance && state.stats.guestsToday < expected) {
-    const entity = world.createEntity();
-    world.addComponent<Position>(entity, 'Position', { x: GAME_CONFIG.ENTRANCE_X, y: GAME_CONFIG.ENTRANCE_Y }); // Entrance
-    world.addComponent<Velocity>(entity, 'Velocity', { vx: 0, vy: -50 });
-    world.addComponent<Renderable>(entity, 'Renderable', { type: 'guest', color: '#3b82f6', size: 4 });
-    const initialMoney = 50 + Math.random() * 100;
-    const portraitCount = spriteRegistry.guestPortraits.length;
-    world.addComponent<Guest>(entity, 'Guest', {
-      money: initialMoney,
-      initialMoney,
-      hunger: Math.random() * 50,
-      bladder: Math.random() * 30,
-      excitement: 0,
-      targetId: null,
-      state: 'wandering',
-      timer: 0,
-      arrivalTime: state.time,
-      portraitIndex: portraitCount > 0 ? Math.floor(Math.random() * portraitCount) : -1,
-      maxWaitTolerance: 3 + Math.random() * 10, // 3-13 guests they'll wait behind
-    });
-    state.stats.guestsToday++;
+  // Spread `expected` arrivals across the operating day, busier around 2 PM.
+  // The peak curve integrates to roughly 0.42 of a flat day, so dividing by
+  // that keeps the day's total near `expected`.
+  const peakFactor = Math.max(0.1, 1 - Math.abs(state.time - 14) / 6);
+  const normalizedPeak = peakFactor / 0.42;
+
+  // dt is already scaled by the sim speed, so this is arrivals per tick.
+  // Big fairs need more than one guest per tick, hence the loop rather than
+  // a single coin flip.
+  const arrivals = (expected / DAY_LENGTH_SECONDS) * normalizedPeak * dt;
+  let toSpawn = Math.floor(arrivals);
+  if (Math.random() < arrivals - toSpawn) toSpawn++;
+
+  for (let i = 0; i < toSpawn && state.stats.guestsToday < expected; i++) {
+    spawnGuest(world, state);
   }
 }
 
 export function GuestAISystem(world: World, dt: number) {
   const guests = world.getEntitiesWith(['Guest', 'Position', 'Velocity']);
   const state = gameStateManager.state;
-  
+  const closing = state.time >= GAME_CONFIG.DAY_END;
+  const minTicket = cheapestTicket(state);
+
   for (const entity of guests) {
     const guest = world.getComponent(entity, 'Guest')!;
     const pos = world.getComponent(entity, 'Position')!;
@@ -129,21 +164,25 @@ export function GuestAISystem(world: World, dt: number) {
 
     guest.hunger += dt * 0.5; // Hunger increases over time
     guest.bladder += dt * 0.8; // Bladder increases over time
+    guest.excitement = Math.max(0, guest.excitement - dt * EXCITEMENT_DECAY_PER_SECOND);
 
     if (Math.random() < 0.02 * dt) { // Chance to drop trash
       const trash = world.createEntity();
-      world.addComponent<Position>(trash, 'Position', { x: pos.x, y: pos.y });
-      world.addComponent<Renderable>(trash, 'Renderable', { type: 'trash', color: '#78716c', size: 2 });
-      world.addComponent<Trash>(trash, 'Trash', {});
+      world.addComponent(trash, 'Position', { x: pos.x, y: pos.y });
+      world.addComponent(trash, 'Renderable', { type: 'trash', color: '#78716c', size: 2 });
+      world.addComponent(trash, 'Trash', {});
     }
 
-    if (state.time >= 22) {
-      // Remove from queue if queued
-      if (guest.state === 'queued' && guest.targetId) {
-        const target = state.placedItems.find(i => i.id === guest.targetId);
-        if (target) target.queue = target.queue.filter(id => id !== entity);
+    // Decide whether it's time to go home. Guests mid-ride finish first;
+    // at closing everyone is turned out regardless.
+    if (guest.state !== 'leaving') {
+      const between = guest.state === 'wandering' || guest.state === 'walking' || guest.state === 'queued';
+      const stayedLongEnough = state.time - guest.arrivalTime >= guest.maxStayHours;
+      const outOfMoney = minTicket > 0 && guest.money < minTicket;
+      if (closing || (between && (stayedLongEnough || outOfMoney))) {
+        detachFromTarget(state, guest, entity);
+        guest.state = 'leaving';
       }
-      guest.state = 'leaving';
     }
 
     if (guest.state === 'leaving') {
@@ -154,8 +193,8 @@ export function GuestAISystem(world: World, dt: number) {
       if (dist < 10) {
         world.destroyEntity(entity);
       } else {
-        vel.vx = (dx / dist) * 60;
-        vel.vy = (dy / dist) * 60;
+        vel.vx = (dx / dist) * GAME_CONFIG.WALK_SPEED;
+        vel.vy = (dy / dist) * GAME_CONFIG.WALK_SPEED;
       }
       continue;
     }
@@ -285,8 +324,8 @@ export function GuestAISystem(world: World, dt: number) {
           guest.timer = 0;
         }
       } else {
-        vel.vx = (dx / dist) * 60;
-        vel.vy = (dy / dist) * 60;
+        vel.vx = (dx / dist) * GAME_CONFIG.WALK_SPEED;
+        vel.vy = (dy / dist) * GAME_CONFIG.WALK_SPEED;
       }
     } else if (guest.state === 'queued') {
       // Waiting in line — check if ride broke, was removed, or we should leave
@@ -334,6 +373,13 @@ export function MovementSystem(world: World, dt: number) {
     pos.x += vel.vx * dt;
     pos.y += vel.vy * dt;
   }
+}
+
+/** A repaired ride starts its wear count over, otherwise it breaks again immediately. */
+function repairItem(target: PlacedItem) {
+  target.isBroken = false;
+  target.condition = 100;
+  target.patronsServed = 0;
 }
 
 export function StaffAISystem(world: World, dt: number) {
@@ -437,8 +483,8 @@ export function StaffAISystem(world: World, dt: number) {
           staff.timer = 5; // 5 seconds to fix
           vel.vx = 0; vel.vy = 0;
         } else {
-          vel.vx = ((tx - pos.x) / dist) * 70;
-          vel.vy = ((ty - pos.y) / dist) * 70;
+          vel.vx = ((tx - pos.x) / dist) * GAME_CONFIG.STAFF_SPEED;
+          vel.vy = ((ty - pos.y) / dist) * GAME_CONFIG.STAFF_SPEED;
         }
       } else if (staff.type === 'sanitation') {
         if (typeof staff.targetId === 'string') {
@@ -457,8 +503,8 @@ export function StaffAISystem(world: World, dt: number) {
             staff.timer = 3; // 3 seconds to clean
             vel.vx = 0; vel.vy = 0;
           } else {
-            vel.vx = ((tx - pos.x) / dist) * 70;
-            vel.vy = ((ty - pos.y) / dist) * 70;
+            vel.vx = ((tx - pos.x) / dist) * GAME_CONFIG.STAFF_SPEED;
+            vel.vy = ((ty - pos.y) / dist) * GAME_CONFIG.STAFF_SPEED;
           }
         } else {
           // Targeting trash
@@ -476,8 +522,8 @@ export function StaffAISystem(world: World, dt: number) {
             staff.timer = 0;
             vel.vx = 0; vel.vy = 0;
           } else {
-            vel.vx = ((tPos.x - pos.x) / dist) * 70;
-            vel.vy = ((tPos.y - pos.y) / dist) * 70;
+            vel.vx = ((tPos.x - pos.x) / dist) * GAME_CONFIG.STAFF_SPEED;
+            vel.vy = ((tPos.y - pos.y) / dist) * GAME_CONFIG.STAFF_SPEED;
           }
         }
       }
@@ -486,10 +532,7 @@ export function StaffAISystem(world: World, dt: number) {
       if (staff.timer <= 0) {
         if (staff.type === 'maintenance' || (staff.type === 'sanitation' && typeof staff.targetId === 'string')) {
           const target = state.placedItems.find(i => i.id === staff.targetId);
-          if (target) {
-            target.isBroken = false;
-            target.condition = 100;
-          }
+          if (target) repairItem(target);
         }
         staff.state = 'wandering';
         staff.timer = 0;
@@ -506,18 +549,18 @@ export function StaffAISystem(world: World, dt: number) {
   // Spawn missing staff
   while (maintCount < state.staff.maintenance) {
     const entity = world.createEntity();
-    world.addComponent<Position>(entity, 'Position', { x: GAME_CONFIG.ENTRANCE_X, y: GAME_CONFIG.ENTRANCE_Y });
-    world.addComponent<Velocity>(entity, 'Velocity', { vx: 0, vy: -50 });
-    world.addComponent<Renderable>(entity, 'Renderable', { type: 'staff', color: '#f97316', size: 4 }); // Orange
-    world.addComponent<StaffMember>(entity, 'Staff', { type: 'maintenance', targetId: null, state: 'wandering', timer: 0 });
+    world.addComponent(entity, 'Position', { x: GAME_CONFIG.ENTRANCE_X, y: GAME_CONFIG.ENTRANCE_Y });
+    world.addComponent(entity, 'Velocity', { vx: 0, vy: -GAME_CONFIG.STAFF_SPEED });
+    world.addComponent(entity, 'Renderable', { type: 'staff', color: '#f97316', size: 4 }); // Orange
+    world.addComponent(entity, 'Staff', { type: 'maintenance', targetId: null, state: 'wandering', timer: 0 });
     maintCount++;
   }
   while (saniCount < state.staff.sanitation) {
     const entity = world.createEntity();
-    world.addComponent<Position>(entity, 'Position', { x: GAME_CONFIG.ENTRANCE_X, y: GAME_CONFIG.ENTRANCE_Y });
-    world.addComponent<Velocity>(entity, 'Velocity', { vx: 0, vy: -50 });
-    world.addComponent<Renderable>(entity, 'Renderable', { type: 'staff', color: '#f8fafc', size: 4 }); // White
-    world.addComponent<StaffMember>(entity, 'Staff', { type: 'sanitation', targetId: null, state: 'wandering', timer: 0 });
+    world.addComponent(entity, 'Position', { x: GAME_CONFIG.ENTRANCE_X, y: GAME_CONFIG.ENTRANCE_Y });
+    world.addComponent(entity, 'Velocity', { vx: 0, vy: -GAME_CONFIG.STAFF_SPEED });
+    world.addComponent(entity, 'Renderable', { type: 'staff', color: '#f8fafc', size: 4 }); // White
+    world.addComponent(entity, 'Staff', { type: 'sanitation', targetId: null, state: 'wandering', timer: 0 });
     saniCount++;
   }
 }
@@ -526,18 +569,20 @@ let lastNotifyTime = 0;
 
 export function TimeSystem(world: World, dt: number) {
   const state = gameStateManager.state;
-  if (state.phase === 'OPERATION') {
-    // 1 real second = 10 in-game minutes (at fast speed)
-    // 6 real seconds = 1 in-game hour (at fast speed)
-    const speedMul = SIM_SPEED_MULTIPLIERS[state.simSpeed] ?? 1;
-    state.time += (dt * speedMul) / 6;
-    if (state.time >= 22) { // 10 PM
-      gameStateManager.update({ phase: 'TEARDOWN' });
-    } else {
-      if (state.time - lastNotifyTime > 0.1) { // Notify roughly every 6 in-game minutes
-        lastNotifyTime = state.time;
-        gameStateManager.notify();
-      }
-    }
+  if (state.phase !== 'OPERATION') return;
+
+  // The clock rewinds to opening time each morning. Without this the marker
+  // left at last night's closing time suppresses every notify for the whole
+  // next day, freezing the clock and cash readouts in the HUD.
+  if (state.time < lastNotifyTime) lastNotifyTime = state.time;
+
+  // dt arrives already scaled by the sim speed.
+  state.time += dt / GAME_CONFIG.TIME_SCALE;
+
+  if (state.time >= GAME_CONFIG.DAY_END) {
+    gameStateManager.update({ phase: 'TEARDOWN' });
+  } else if (state.time - lastNotifyTime > 0.1) { // roughly every 6 in-game minutes
+    lastNotifyTime = state.time;
+    gameStateManager.notify();
   }
 }

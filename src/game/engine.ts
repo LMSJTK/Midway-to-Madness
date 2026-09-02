@@ -1,5 +1,5 @@
 import { World } from './ecs';
-import { gameStateManager } from './gameState';
+import { gameStateManager, SIM_SPEED_MULTIPLIERS } from './gameState';
 import { GuestSpawningSystem, GuestAISystem, MovementSystem, TimeSystem, StaffAISystem } from './systems';
 import { spriteRegistry } from './spriteRegistry';
 import { CATEGORY_DEFAULTS, ItemCategory, ITEM_DEFINITIONS } from './items';
@@ -134,6 +134,7 @@ export interface GhostPreview {
   itemDefId: string;
   x: number;
   y: number;
+  valid: boolean;
 }
 
 export class GameEngine {
@@ -144,6 +145,8 @@ export class GameEngine {
   private readonly SIMULATION_STEP = 1000 / 20; // 20 FPS for logic
   private animationFrameId: number = 0;
   private isRunning: boolean = false;
+  /** Set while the manifest is loading, so a second start() can't race in. */
+  private starting: boolean = false;
 
   public canvas: HTMLCanvasElement | null = null;
   public ctx: CanvasRenderingContext2D | null = null;
@@ -154,14 +157,21 @@ export class GameEngine {
   }
 
   async start() {
-    if (this.isRunning) return;
+    // React StrictMode mounts, unmounts and remounts in development. Without
+    // the `starting` guard both mounts get past the isRunning check while the
+    // manifest is still loading and the simulation runs at double speed.
+    if (this.isRunning || this.starting) return;
+    this.starting = true;
     await spriteRegistry.load();
+    if (!this.starting) return; // stop() was called while loading
+    this.starting = false;
     this.isRunning = true;
     this.lastTime = performance.now();
     this.loop(this.lastTime);
   }
 
   stop() {
+    this.starting = false;
     this.isRunning = false;
     cancelAnimationFrame(this.animationFrameId);
   }
@@ -185,13 +195,17 @@ export class GameEngine {
 
   private update(dt: number) {
     const state = gameStateManager.state;
-    if (state.phase === 'OPERATION') {
-      GuestSpawningSystem(this.world, dt);
-      GuestAISystem(this.world, dt);
-      StaffAISystem(this.world, dt);
-      MovementSystem(this.world, dt);
-      TimeSystem(this.world, dt);
-    }
+    if (state.phase !== 'OPERATION') return;
+
+    // Scale the timestep once, here, so every system below advances by the
+    // same amount of simulated time.
+    const step = dt * (SIM_SPEED_MULTIPLIERS[state.simSpeed] ?? 1);
+
+    GuestSpawningSystem(this.world, step);
+    GuestAISystem(this.world, step);
+    StaffAISystem(this.world, step);
+    MovementSystem(this.world, step);
+    TimeSystem(this.world, step);
   }
 
   private render() {
@@ -400,6 +414,25 @@ export class GameEngine {
            }
 
            this.ctx.globalAlpha = 1.0;
+
+           // Outline the footprint: red means the piece won't fit here.
+           const c1 = toIso(gx, gy);
+           const c2 = toIso(gx + def.width, gy);
+           const c3 = toIso(gx + def.width, gy + def.height);
+           const c4 = toIso(gx, gy + def.height);
+           this.ctx.strokeStyle = this.ghost.valid ? 'rgba(52, 211, 153, 0.9)' : 'rgba(239, 68, 68, 0.95)';
+           this.ctx.lineWidth = 2;
+           this.ctx.beginPath();
+           this.ctx.moveTo(c1.x, c1.y);
+           this.ctx.lineTo(c2.x, c2.y);
+           this.ctx.lineTo(c3.x, c3.y);
+           this.ctx.lineTo(c4.x, c4.y);
+           this.ctx.closePath();
+           this.ctx.stroke();
+           if (!this.ghost.valid) {
+             this.ctx.fillStyle = 'rgba(239, 68, 68, 0.25)';
+             this.ctx.fill();
+           }
          }
        }
 

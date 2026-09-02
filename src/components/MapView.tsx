@@ -25,45 +25,57 @@ export function MapView() {
   }, []);
 
   const handleSelectLocation = (loc: Location) => {
-    if (state.money >= loc.fee) {
-      gameStateManager.update({
-        currentLocation: loc,
-        phase: 'BIDDING'
-      });
-    } else {
-      alert("Not enough money for the privilege fee!");
-    }
+    if (state.money < loc.fee) return;
+    gameStateManager.update({ currentLocation: loc, phase: 'BIDDING' });
   };
 
   const handleBuy = (itemId: string) => {
     const def = ITEM_DEFINITIONS[itemId];
-    if (!def) return;
-    if (state.money >= def.cost) {
-      gameStateManager.update({
-        money: state.money - def.cost,
-        inventory: {
-          ...state.inventory,
-          [itemId]: (state.inventory[itemId] || 0) + 1
-        }
-      });
-    }
+    if (!def || state.money < def.cost) return;
+    gameStateManager.update({
+      inventory: {
+        ...state.inventory,
+        [itemId]: (state.inventory[itemId] || 0) + 1
+      }
+    });
+    gameStateManager.spend(def.cost);
   };
 
   const handleHire = (type: keyof Staff, cost: number) => {
-    if (state.money >= cost) {
-      gameStateManager.update({
-        money: state.money - cost,
-        staff: {
-          ...state.staff,
-          [type]: state.staff[type] + 1
-        }
-      });
-    }
+    if (state.money < cost) return;
+    gameStateManager.update({
+      staff: {
+        ...state.staff,
+        [type]: state.staff[type] + 1
+      }
+    });
+    gameStateManager.spend(cost);
   };
+
+  // Nothing on the board is affordable and there is no other way to earn:
+  // say so plainly instead of leaving every button greyed out with no reason.
+  const cheapestFee = Math.min(...LOCATIONS.map(l => l.fee));
+  const stranded = state.money < cheapestFee;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-800 text-white p-8">
       <h1 className="text-4xl font-bold mb-8 font-serif mt-16">Select Next Destination</h1>
+
+      {stranded && (
+        <div className="w-full max-w-5xl mb-6 bg-red-950/60 border border-red-800 rounded-xl p-5">
+          <h2 className="text-lg font-bold text-red-300 mb-1">The show can't make the next town</h2>
+          <p className="text-sm text-red-200/80">
+            You have ${state.money.toFixed(2)}, and the cheapest privilege fee on the board is ${cheapestFee}.
+            There's no way left to earn tonight.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-red-700 hover:bg-red-600 text-white text-sm font-semibold rounded-lg transition-colors"
+          >
+            Start a New Season
+          </button>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl">
         {LOCATIONS.map((loc) => (
           <div key={loc.id} className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 shadow-lg hover:border-emerald-500 transition-colors">

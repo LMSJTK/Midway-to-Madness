@@ -26,6 +26,11 @@ The phases below are ordered so each one is visible to a player before the next 
 
 ## 3. Phase 0 — Fix what is broken (about a week)
 
+**Status: shipped.** All 18 are fixed on `claude/game-improvement-plan-poeubk`, verified by a
+headless three-day playthrough of the production build (24 checks: the clock advances on days 2
+and 3, a location-gated unlock appears on day 3, overlapping placement is refused, the day reaches
+closing on its own, and the summary shows a real net).
+
 Ordered by player impact. Each row is a one-PR fix; the first three could ship together.
 
 | # | Impact | Symptom | Cause | Fix |
@@ -158,7 +163,7 @@ Each is small, reviewable, and leaves the game visibly better than before.
 
 | Jump | PR | What the player sees |
 |------|----|----------------------|
-| 1 | Foundation: fix tsc, dedupe ECS types, reset `lastNotifyTime`, record `visitedLocations`, fix the StrictMode double start, gitignore journals, remove the key define | Day 2 works, unlocks work, lint is green |
+| 1 ✅ | Foundation: fix tsc, dedupe ECS types, reset `lastNotifyTime`, record `visitedLocations`, fix the StrictMode double start, gitignore journals, remove the key define | Day 2 works, unlocks work, lint is green |
 | 2 | Sprite anchors, footprint-scaled drawing, editor grid at true scale | Rides sit on their lots; guests stand where the art is |
 | 3 | Canvas fits the viewport, drag-pan, initial framing, placement validation | The lot is on screen; no overlapping rides |
 | 4 | One sim clock (dt scaled once), excitement decay, guests leave when done | 2x is real; parks stop filling with bored guests; steady fps |

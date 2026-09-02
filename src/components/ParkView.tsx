@@ -52,7 +52,11 @@ export function ParkView() {
     const screenX = (e.clientX - rect.left - engine.camera.x) / engine.camera.zoom;
     const screenY = (e.clientY - rect.top - engine.camera.y) / engine.camera.zoom;
     const logicalPos = fromIso(screenX, screenY);
-    engine.ghost = { itemDefId: selectedTool, x: logicalPos.x, y: logicalPos.y };
+    const def = ITEM_DEFINITIONS[selectedTool];
+    const valid = def
+      ? gameStateManager.canPlaceItem(selectedTool, logicalPos.x - def.width / 2, logicalPos.y - def.height / 2)
+      : false;
+    engine.ghost = { itemDefId: selectedTool, x: logicalPos.x, y: logicalPos.y, valid };
   };
 
   const handleMouseLeave = () => {

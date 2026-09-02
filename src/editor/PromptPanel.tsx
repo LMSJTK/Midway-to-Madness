@@ -84,7 +84,7 @@ export function PromptPanel({ onAssetCreated, currentAsset }: Props) {
         category,
         prompt: result.prompt,
         model: result.model,
-        entity_type: effectiveEntityType || null,
+        entity_type: category === 'portrait' ? 'guest_portrait' : (effectiveEntityType || null),
         game_category: gameCategory || null,
         slot,
         grid_w: gridW,
@@ -172,6 +172,12 @@ export function PromptPanel({ onAssetCreated, currentAsset }: Props) {
           </select>
         </label>
       </div>
+
+      {category === 'portrait' && (
+        <div className="bg-zinc-900 rounded p-2 text-xs text-emerald-400">
+          Portraits bind to <strong>guest_portrait</strong> automatically and show in the guest inspector.
+        </div>
+      )}
 
       {entitySelectValue === NEW_ENTITY_SENTINEL && (
         <div className="bg-zinc-900 rounded p-2 text-xs text-emerald-400">

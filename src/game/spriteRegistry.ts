@@ -7,6 +7,7 @@
 
 import { registerItem, ITEM_DEFINITIONS, CATEGORY_DEFAULTS, ItemCategory } from './items';
 import { registerScenery, Biome } from './scenery';
+import { GAME_CONFIG } from './constants';
 
 export interface SpriteAsset {
   image: HTMLImageElement;
@@ -113,8 +114,8 @@ class SpriteRegistry {
           name: gs.name,
           basePrice: gs.basePrice,
           cost: gs.cost,
-          width: entry.footprint.w * 50,
-          height: entry.footprint.h * 50,
+          width: entry.footprint.w * GAME_CONFIG.CELL,
+          height: entry.footprint.h * GAME_CONFIG.CELL,
           color: catDefaults?.color ?? '#fff',
           prestige: gs.prestige,
           value: gs.value,
@@ -134,8 +135,8 @@ class SpriteRegistry {
           id: entry.entityType || id,
           name: entry.gameStats?.name || id,
           biomes: entry.biomes as Biome[],
-          width: entry.footprint.w * 50,
-          height: entry.footprint.h * 50,
+          width: entry.footprint.w * GAME_CONFIG.CELL,
+          height: entry.footprint.h * GAME_CONFIG.CELL,
           color: '#888',
           z: 15,
           frequency: 4,

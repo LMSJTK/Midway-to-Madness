@@ -13,11 +13,18 @@ const db = new Database(DB_PATH);
 // Enable WAL mode for better concurrent read performance
 db.pragma('journal_mode = WAL');
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS assets (
+/** Asset categories the editor can produce. Mirrored in the editor UI. */
+export const ASSET_CATEGORIES = [
+  'ride', 'stall', 'guest', 'staff', 'trash', 'prop', 'terrain', 'ui', 'portrait',
+] as const;
+
+const CATEGORY_CHECK = ASSET_CATEGORIES.map(c => `'${c}'`).join(',');
+
+const assetTableSql = (table: string) => `
+  CREATE TABLE ${table} (
     id          TEXT PRIMARY KEY,
     name        TEXT NOT NULL,
-    category    TEXT NOT NULL CHECK(category IN ('ride','stall','guest','staff','trash','prop','terrain','ui')),
+    category    TEXT NOT NULL CHECK(category IN (${CATEGORY_CHECK})),
     state       TEXT NOT NULL DEFAULT 'draft' CHECK(state IN ('draft','review','approved','deprecated')),
     prompt      TEXT,
     negative_prompt TEXT,
@@ -31,11 +38,26 @@ db.exec(`
     slot        TEXT NOT NULL DEFAULT 'base_idle',
     image_path  TEXT,
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    prestige        INTEGER NOT NULL DEFAULT 10,
+    value           INTEGER NOT NULL DEFAULT 20,
+    item_cost       INTEGER NOT NULL DEFAULT 500,
+    base_price      INTEGER NOT NULL DEFAULT 5,
+    unlock_day      INTEGER NOT NULL DEFAULT 0,
+    unlock_location TEXT,
+    capacity        INTEGER,
+    duration        INTEGER,
+    travel_weight   INTEGER NOT NULL DEFAULT 1,
+    quality         INTEGER NOT NULL DEFAULT 50,
+    game_category   TEXT,
+    biomes          TEXT
   );
-`);
+`;
 
-// Add game-stat columns for named buildings (safe to re-run on existing DBs)
+db.exec(assetTableSql('IF NOT EXISTS assets'));
+
+// Add game-stat columns for named buildings to databases created before they
+// existed (safe to re-run; fresh databases already have them)
 const gameStatCols: [string, string][] = [
   ['prestige',       'INTEGER NOT NULL DEFAULT 10'],
   ['value',          'INTEGER NOT NULL DEFAULT 20'],
@@ -52,6 +74,32 @@ const gameStatCols: [string, string][] = [
 ];
 for (const [col, def] of gameStatCols) {
   try { db.exec(`ALTER TABLE assets ADD COLUMN ${col} ${def}`); } catch { /* already exists */ }
+}
+
+/**
+ * The allowed categories live in a CHECK constraint, and SQLite can only widen
+ * one by rebuilding the table. A database created before a category was added
+ * rejects it on insert, so rebuild whenever the stored schema is behind.
+ */
+const storedSchema = db
+  .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'assets'")
+  .get() as { sql: string } | undefined;
+
+if (storedSchema && ASSET_CATEGORIES.some(c => !storedSchema.sql.includes(`'${c}'`))) {
+  const existing = (db.pragma('table_info(assets)') as { name: string }[]).map(c => c.name);
+
+  db.transaction(() => {
+    db.exec(assetTableSql('assets_migrated'));
+    // Carry over every column the two schemas share, so a database written by
+    // an older build keeps its data.
+    const target = new Set((db.pragma('table_info(assets_migrated)') as { name: string }[]).map(c => c.name));
+    const columnList = existing.filter(c => target.has(c)).join(', ');
+    db.exec(`INSERT INTO assets_migrated (${columnList}) SELECT ${columnList} FROM assets`);
+    db.exec('DROP TABLE assets');
+    db.exec('ALTER TABLE assets_migrated RENAME TO assets');
+  })();
+
+  console.log(`Migrated assets table to categories: ${ASSET_CATEGORIES.join(', ')}`);
 }
 
 export interface AssetRow {

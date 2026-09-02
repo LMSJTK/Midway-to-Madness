@@ -3,6 +3,7 @@ import { gameStateManager } from '../game/gameState';
 
 export function SummaryView() {
   const state = gameStateManager.state;
+  const net = state.stats.revenueToday - state.stats.expensesToday;
 
   const handleNextDay = () => {
     gameStateManager.resetDay();
@@ -19,14 +20,24 @@ export function SummaryView() {
         <h1 className="text-4xl font-bold mb-2 font-serif text-emerald-400">Day {state.day} Summary</h1>
         <h2 className="text-xl mb-8 text-zinc-400">{state.currentLocation?.name}</h2>
         
-        <div className="grid grid-cols-2 gap-6 mb-8 text-left">
-          <div className="bg-zinc-900 p-6 rounded-xl border border-zinc-700">
-            <h3 className="text-sm font-medium text-zinc-400 uppercase tracking-wider mb-2">Total Revenue</h3>
-            <div className="text-3xl font-mono text-emerald-400">${state.stats.revenueToday.toFixed(2)}</div>
+        <div className="bg-zinc-900 rounded-xl border border-zinc-700 mb-8 text-left divide-y divide-zinc-800">
+          <div className="flex justify-between px-6 py-3">
+            <span className="text-zinc-400">Ticket &amp; stall revenue</span>
+            <span className="font-mono text-emerald-400">${state.stats.revenueToday.toFixed(2)}</span>
           </div>
-          <div className="bg-zinc-900 p-6 rounded-xl border border-zinc-700">
-            <h3 className="text-sm font-medium text-zinc-400 uppercase tracking-wider mb-2">Guests Served</h3>
-            <div className="text-3xl font-mono text-blue-400">{state.stats.guestsToday}</div>
+          <div className="flex justify-between px-6 py-3">
+            <span className="text-zinc-400">Fees, travel, rides &amp; staff</span>
+            <span className="font-mono text-red-400">-${state.stats.expensesToday.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between px-6 py-4">
+            <span className="font-bold text-zinc-200">Net for the day</span>
+            <span className={`font-mono text-2xl font-bold ${net >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {net < 0 ? '-' : ''}${Math.abs(net).toFixed(2)}
+            </span>
+          </div>
+          <div className="flex justify-between px-6 py-3">
+            <span className="text-zinc-400">Guests served</span>
+            <span className="font-mono text-blue-400">{state.stats.guestsToday}</span>
           </div>
         </div>
 

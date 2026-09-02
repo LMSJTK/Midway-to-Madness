@@ -44,6 +44,7 @@ export function AssetBrowser({ onSelect, selectedId, refreshKey }: Props) {
           <option value="staff">Staff</option>
           <option value="trash">Trash</option>
           <option value="prop">Props</option>
+          <option value="portrait">Portraits</option>
         </select>
       </div>
 

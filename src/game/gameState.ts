@@ -1,9 +1,17 @@
 import { ITEM_DEFINITIONS, STOCK_CATEGORIES } from './items';
 import { Biome, SceneryItem, generateScenery } from './scenery';
+import { GAME_CONFIG } from './constants';
 
 export type Phase = 'MAP' | 'BIDDING' | 'SETUP' | 'OPERATION' | 'TEARDOWN' | 'SUMMARY';
-export type SimSpeed = 'normal' | 'fast';
-export const SIM_SPEED_MULTIPLIERS: Record<SimSpeed, number> = { normal: 0.5, fast: 1 };
+export type SimSpeed = 'normal' | 'fast' | 'ultra';
+
+/**
+ * Applied once, to the whole simulation step. Everything downstream — the
+ * clock, guest needs, movement, ride timers — runs off that single scaled dt,
+ * so 2x really is twice the day.
+ */
+export const SIM_SPEED_MULTIPLIERS: Record<SimSpeed, number> = { normal: 1, fast: 2, ultra: 4 };
+export const SIM_SPEED_LABELS: Record<SimSpeed, string> = { normal: '1x', fast: '2x', ultra: '4x' };
 
 export interface Location {
   id: string;
@@ -57,7 +65,7 @@ export class StateManager {
   public state = {
     money: 15000,
     day: 1,
-    time: 8,
+    time: GAME_CONFIG.DAY_START,
     phase: 'MAP' as Phase,
     currentLocation: null as Location | null,
     // Dynamic inventory: keys are item definition IDs, values are counts
@@ -103,7 +111,7 @@ export class StateManager {
   }
 
   resetDay() {
-    this.state.time = 8;
+    this.state.time = GAME_CONFIG.DAY_START;
     this.state.stats = {
       guestsToday: 0,
       revenueToday: 0,
@@ -131,6 +139,55 @@ export class StateManager {
     this.notify();
   }
 
+  /** Record money going out so the day summary can show a real net. */
+  spend(amount: number) {
+    this.update({
+      money: this.state.money - amount,
+      stats: { ...this.state.stats, expensesToday: this.state.stats.expensesToday + amount },
+    });
+  }
+
+  /** Sign the contract for a location and remember that we played there. */
+  signContract(location: Location, cost: number) {
+    const visitedLocations = this.state.visitedLocations.includes(location.id)
+      ? this.state.visitedLocations
+      : [...this.state.visitedLocations, location.id];
+
+    this.update({
+      money: this.state.money - cost,
+      stats: { ...this.state.stats, expensesToday: this.state.stats.expensesToday + cost },
+      currentLocation: location,
+      visitedLocations,
+      phase: 'SETUP',
+    });
+    this.generateScenery();
+  }
+
+  /**
+   * Whether a footprint fits: inside the lot, clear of everything already
+   * placed, and clear of the entrance so arrivals aren't walled in.
+   */
+  canPlaceItem(itemDefId: string, x: number, y: number): boolean {
+    const def = ITEM_DEFINITIONS[itemDefId];
+    if (!def) return false;
+    if ((this.state.inventory[itemDefId] || 0) <= 0) return false;
+
+    if (x < 0 || y < 0 || x + def.width > GAME_CONFIG.MAP_WIDTH || y + def.height > GAME_CONFIG.MAP_HEIGHT) {
+      return false;
+    }
+
+    const overlaps = (ox: number, oy: number, ow: number, oh: number) =>
+      x < ox + ow && x + def.width > ox && y < oy + oh && y + def.height > oy;
+
+    if (this.state.placedItems.some(i => overlaps(i.x, i.y, i.width, i.height))) return false;
+
+    // Keep the strip in front of the gate walkable.
+    const gate = { x: GAME_CONFIG.ENTRANCE_X - 60, y: GAME_CONFIG.MAP_HEIGHT - 60, w: 120, h: 60 };
+    if (overlaps(gate.x, gate.y, gate.w, gate.h)) return false;
+
+    return true;
+  }
+
   setGlobalPrice(itemDefId: string, price: number) {
     const clampedPrice = Math.max(0, price);
     this.state.priceOverrides = { ...this.state.priceOverrides, [itemDefId]: clampedPrice };
@@ -142,10 +199,9 @@ export class StateManager {
 
   placeItem(itemDefId: string, x: number, y: number): boolean {
     const def = ITEM_DEFINITIONS[itemDefId];
-    if (!def) return false;
+    if (!def || !this.canPlaceItem(itemDefId, x, y)) return false;
 
     const count = this.state.inventory[itemDefId] || 0;
-    if (count <= 0) return false;
 
     this.state.inventory = {
       ...this.state.inventory,
@@ -177,6 +233,11 @@ export class StateManager {
       condition: 100,
       queue: [],
     };
+
+    // Clear decorative props the ride would otherwise sit on top of.
+    this.state.sceneryItems = this.state.sceneryItems.filter(s =>
+      !(x < s.x + s.width && x + def.width > s.x && y < s.y + s.height && y + def.height > s.y)
+    );
 
     this.state.placedItems.push(newItem);
     this.notify();
