@@ -19,12 +19,7 @@ export function BiddingView() {
 
   const handleAccept = () => {
     if (loc && state.money >= totalCost) {
-      gameStateManager.update({
-        money: state.money - totalCost,
-        phase: 'SETUP',
-        currentLocation: { ...loc, fee: bidAmount, revenueShare }
-      });
-      gameStateManager.generateScenery();
+      gameStateManager.signContract({ ...loc, fee: bidAmount, revenueShare }, totalCost);
     }
   };
 

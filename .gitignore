@@ -1,6 +1,11 @@
 node_modules/
 build/
 dist/
+
+# SQLite journal files — transient companions to the tracked assets.db
+*.db-wal
+*.db-shm
+
 coverage/
 .DS_Store
 *.log

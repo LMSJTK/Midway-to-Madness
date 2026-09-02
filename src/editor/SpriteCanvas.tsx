@@ -1,12 +1,13 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { AssetRecord, assetsApi } from './api';
+import { GAME_CONFIG } from '../game/constants';
 
 /**
- * Isometric grid constants — mirrors engine.ts values.
- * Used to overlay the tile grid on the sprite for anchor alignment.
+ * Half-extents of one footprint cell's isometric diamond, straight from the
+ * game's constants so the overlay matches what the renderer will draw.
  */
-const TILE_W = 40;
-const TILE_H = 20;
+const TILE_W = GAME_CONFIG.TILE_HALF_W;
+const TILE_H = GAME_CONFIG.TILE_HALF_H;
 
 interface Props {
   asset: AssetRecord | null;

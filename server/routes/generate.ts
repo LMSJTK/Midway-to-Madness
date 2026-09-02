@@ -11,6 +11,22 @@ const router = Router();
 
 const SPRITES_DIR = path.resolve(__dirname, '..', '..', 'public', 'assets', 'sprites');
 
+// Category and asset id both come from the request and both become path
+// segments, so neither is trusted verbatim.
+const SPRITE_CATEGORIES = new Set([
+  'ride', 'stall', 'guest', 'staff', 'trash', 'prop', 'terrain', 'ui', 'portrait',
+]);
+
+/** Reduce a request field to a single safe path segment. */
+function safeSegment(value: unknown, fallback: string): string {
+  const cleaned = String(value ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '_')
+    .replace(/^[_-]+|[_-]+$/g, '')
+    .slice(0, 64);
+  return cleaned || fallback;
+}
+
 // Prompt template enforces isometric consistency
 const PROMPT_PREFIX = 'Isometric 2:1 dimetric projection, viewed from above-right, top-left lighting, carnival fairground style, transparent background, clean edges, vibrant colors';
 const PROMPT_SUFFIX = 'single isolated object, no text, no watermark, game asset sprite';
@@ -127,14 +143,19 @@ router.post('/', async (req, res) => {
       .toBuffer();
 
     // Save to sprites directory
-    const categoryDir = path.join(SPRITES_DIR, category || 'uncategorized');
-    fs.mkdirSync(categoryDir, { recursive: true });
+    const categoryName = SPRITE_CATEGORIES.has(category) ? category : 'uncategorized';
+    const fileStem = safeSegment(assetId, `generated_${Date.now()}`);
 
-    const filename = `${assetId || 'generated_' + Date.now()}.png`;
-    const filePath = path.join(categoryDir, filename);
+    const categoryDir = path.join(SPRITES_DIR, categoryName);
+    const filePath = path.join(categoryDir, `${fileStem}.png`);
+    if (path.relative(SPRITES_DIR, filePath).startsWith('..')) {
+      return res.status(400).json({ error: 'Invalid category or assetId' });
+    }
+
+    fs.mkdirSync(categoryDir, { recursive: true });
     fs.writeFileSync(filePath, buffer);
 
-    const relativePath = `assets/sprites/${category || 'uncategorized'}/${filename}`;
+    const relativePath = `assets/sprites/${categoryName}/${fileStem}.png`;
 
     res.json({
       prompt: fullPrompt,

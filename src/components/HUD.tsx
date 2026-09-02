@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { gameStateManager, SimSpeed } from '../game/gameState';
+import { gameStateManager, Phase, SimSpeed, SIM_SPEED_LABELS } from '../game/gameState';
+
+const PHASE_LABELS: Record<Phase, string> = {
+  MAP: 'Planning the route',
+  BIDDING: 'Negotiating',
+  SETUP: 'Setting up',
+  OPERATION: 'Open for business',
+  TEARDOWN: 'Tearing down',
+  SUMMARY: 'Counting the take',
+};
 
 export function HUD() {
   const [state, setState] = useState(gameStateManager.state);
@@ -34,7 +43,7 @@ export function HUD() {
         )}
         {state.phase === 'OPERATION' && (
           <div className="flex items-center gap-1">
-            {(['normal', 'fast'] as SimSpeed[]).map(speed => (
+            {(['normal', 'fast', 'ultra'] as SimSpeed[]).map(speed => (
               <button
                 key={speed}
                 onClick={() => gameStateManager.update({ simSpeed: speed })}
@@ -44,13 +53,13 @@ export function HUD() {
                     : 'bg-zinc-700 text-zinc-400 hover:bg-zinc-600'
                 }`}
               >
-                {speed === 'normal' ? '1x' : '2x'}
+                {SIM_SPEED_LABELS[speed]}
               </button>
             ))}
           </div>
         )}
         <div className="text-sm text-zinc-400">
-          Phase: <span className="text-white font-semibold">{state.phase}</span>
+          <span className="text-white font-semibold">{PHASE_LABELS[state.phase]}</span>
         </div>
       </div>
     </div>
