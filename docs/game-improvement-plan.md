@@ -82,6 +82,11 @@ stands.
 
 ## 4. Phase 1 — Make it look like a carnival (2–3 weeks)
 
+**Status: shipped, except the parts that need new artwork.** Everything that could
+be done without generating art is done. Generating guest, staff and `base_active`
+sprites needs the Imagen + rembg pipeline (a `GEMINI_API_KEY` and the `rembg`
+service), so those are listed as outstanding below rather than silently skipped.
+
 Visual work that needs no new art comes first; art through the editor follows.
 
 ### 4.1 Sprite anchors (the single biggest visual win)
@@ -122,6 +127,23 @@ Replace the single flat ground block with tiles (the unreferenced `terrain/grass
 
 Move labels into a screen-space layer with background pills, shown on hover, selection, or above 1.2x zoom. 23 PNGs in `public/assets/sprites` are not referenced by the manifest: bind or delete them.
 Among built-in items only the Juggling Act lacks a sprite, but 7 of 12 scenery types (palm tree, cactus, lamp post, flower patch, trash can, sand dune, fire hydrant) still draw as colored blocks, so lots mix painterly art with flat shapes.
+
+### 4.8 What shipped, and what is still outstanding
+
+| Item | State |
+|------|-------|
+| 4.1 Sprite anchors | Done. Anchors are derived by measuring each sprite's artwork — its alpha bounds, and the middle of its lowest rows, which is where the object actually meets the ground. An anchor set in the editor overrides that. |
+| 4.2 Sprite scale | Done. Sprites scale to the footprint of the item as placed, not the footprint recorded in the manifest — the two disagree, and the lot is what guests walk to. The generator now emits at `(w + h) * CELL` too. |
+| 4.3 Camera and canvas | Done except the minimap. The canvas follows its container and the display's pixel ratio, opens framed on the whole lot, and pans by drag, WASD/arrows or `F` to reframe, clamped so the lot cannot leave the screen. |
+| 4.4 People | Partial. Guests and staff are drawn as figures with shadows, varied shirt colours and caps on staff instead of 4 px dots. **Outstanding:** generated guest/staff sprites, walk frames and portraits. |
+| 4.5 Queues and states | Done. Queued guests walk to a numbered slot and shuffle forward, so a backed-up ride is visible. Broken and sold-out both get an alert label, and a broken ride keeps its artwork over a red lot rather than turning into a coloured box. **Outstanding:** `base_active` / `broken_state` frames. |
+| 4.6 Ground, entrance, light | Partial. There is an entrance gate with an approach apron, and a time-of-day wash that warms from late afternoon and goes blue by closing. **Not done:** tiled ground (the two terrain sprites are decorative patches, not seamless tiles — one is now bound to flower patches instead) and glowing lamps. |
+| 4.7 Labels and hygiene | Done. Labels moved to a screen-space layer: pills at constant size, shown on hover, on selection, above 1.2x zoom, and always for trouble. |
+
+**Also found and fixed here:** the asset database held zero approved rows while the
+manifest held nineteen, so the editor's "Export to Game" would have written an
+empty manifest and wiped every sprite from the game. `npm run import:manifest`
+reconciles them, and an export now reproduces the manifest exactly.
 
 ## 5. Phase 2 — Make it a game (3–4 weeks)
 
