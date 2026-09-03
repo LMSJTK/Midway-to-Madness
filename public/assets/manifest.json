@@ -1,4 +1,34 @@
 {
+  "grass_flower_patch": {
+    "path": "assets/sprites/terrain/grass.png",
+    "anchor": {
+      "x": 0,
+      "y": 0
+    },
+    "footprint": {
+      "w": 1,
+      "h": 1
+    },
+    "entityType": "flower_patch",
+    "slot": "base_idle",
+    "biomes": [
+      "meadow",
+      "coastal"
+    ],
+    "gameStats": {
+      "name": "Flower Patch",
+      "prestige": 10,
+      "value": 0,
+      "cost": 0,
+      "basePrice": 0,
+      "unlockDay": 0,
+      "unlockLocation": null,
+      "capacity": null,
+      "duration": null,
+      "travelWeight": 1,
+      "quality": 50
+    }
+  },
   "rock_2": {
     "path": "assets/sprites/stall/rock_2.png",
     "anchor": {

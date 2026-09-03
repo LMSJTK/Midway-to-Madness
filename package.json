@@ -10,7 +10,8 @@
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "editor:server": "tsx server/index.ts",
-    "check:staff": "tsx scripts/check-staff.ts"
+    "check:staff": "tsx scripts/check-staff.ts",
+    "import:manifest": "tsx scripts/import-manifest.ts"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

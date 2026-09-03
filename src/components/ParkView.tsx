@@ -6,11 +6,12 @@ import { ItemInspector } from './ParkView/ItemInspector';
 import { BuildToolbar } from './ParkView/BuildToolbar';
 import { StaffPanel } from './ParkView/StaffPanel';
 import { ITEM_DEFINITIONS } from '../game/items';
-import { GAME_CONFIG } from '../game/constants';
 import { ZONE_RADIUS_DEFAULT } from '../game/gameState';
 
 export function ParkView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const [state, setState] = useState(gameStateManager.state);
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const [zonePlacementFor, setZonePlacementFor] = useState<string | null>(null);
@@ -33,29 +34,84 @@ export function ParkView() {
   }, []);
 
   useEffect(() => {
-    if (canvasRef.current) {
-      engine.canvas = canvasRef.current;
-      engine.ctx = canvasRef.current.getContext('2d');
-      engine.start();
-    }
+    const canvas = canvasRef.current;
+    const stage = stageRef.current;
+    if (!canvas || !stage) return;
+
+    engine.canvas = canvas;
+    engine.ctx = canvas.getContext('2d');
+
+    // Follow the element rather than a fixed size, so the lot fills whatever
+    // window it is given.
+    let framed = false;
+    const observer = new ResizeObserver(() => {
+      const { width, height } = stage.getBoundingClientRect();
+      if (width < 2 || height < 2) return;
+      engine.resize(width, height);
+      if (!framed) {
+        engine.frameLot();
+        framed = true;
+      }
+    });
+    observer.observe(stage);
+
+    engine.start();
     return () => {
+      observer.disconnect();
       engine.stop();
     };
   }, []);
 
   useEffect(() => {
+    const PAN_KEYS: Record<string, [number, number]> = {
+      ArrowUp: [0, 1], ArrowDown: [0, -1], ArrowLeft: [1, 0], ArrowRight: [-1, 0],
+      w: [0, 1], s: [0, -1], a: [1, 0], d: [-1, 0],
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      const speed = 20 / engine.camera.zoom;
-      if (e.key === 'ArrowUp') engine.camera.y += speed;
-      if (e.key === 'ArrowDown') engine.camera.y -= speed;
-      if (e.key === 'ArrowLeft') engine.camera.x += speed;
-      if (e.key === 'ArrowRight') engine.camera.x -= speed;
+      const target = e.target as HTMLElement | null;
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+
+      if (e.key === 'f' || e.key === 'F') {
+        engine.frameLot();
+        return;
+      }
+      const dir = PAN_KEYS[e.key];
+      if (!dir) return;
+      e.preventDefault();
+      const step = 60;
+      engine.panBy(dir[0] * step, dir[1] * step);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const drag = dragRef.current;
+    if (drag && e.buttons === 1) {
+      const dx = e.clientX - drag.x;
+      const dy = e.clientY - drag.y;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) drag.moved = true;
+      drag.x = e.clientX;
+      drag.y = e.clientY;
+      engine.panBy(dx, dy);
+      return;
+    }
+
+    // Track what the cursor is over so its label can surface.
+    const over = toLotCoords(e);
+    let hovered: string | null = null;
+    if (over) {
+      for (let i = state.placedItems.length - 1; i >= 0; i--) {
+        const it = state.placedItems[i];
+        if (over.x >= it.x && over.x <= it.x + it.width && over.y >= it.y && over.y <= it.y + it.height) {
+          hovered = it.id;
+          break;
+        }
+      }
+    }
+    engine.hoveredItemId = hovered;
+
     if (zonePlacementFor) {
       const member = state.staff.find(s => s.id === zonePlacementFor);
       const pos = toLotCoords(e);
@@ -88,6 +144,8 @@ export function ParkView() {
   const handleMouseLeave = () => {
     engine.ghost = null;
     engine.zoneGhost = null;
+    engine.hoveredItemId = null;
+    dragRef.current = null;
   };
 
   // Clear ghost when tool is deselected
@@ -100,26 +158,27 @@ export function ParkView() {
   }, [zonePlacementFor]);
 
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
-    const zoomSensitivity = 0.001;
-    const delta = -e.deltaY * zoomSensitivity;
-    const newZoom = Math.max(0.5, Math.min(3, engine.camera.zoom + delta));
-    
     const rect = canvasRef.current?.getBoundingClientRect();
-    if (rect) {
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-      
-      // Zoom towards mouse
-      engine.camera.x = mouseX - (mouseX - engine.camera.x) * (newZoom / engine.camera.zoom);
-      engine.camera.y = mouseY - (mouseY - engine.camera.y) * (newZoom / engine.camera.zoom);
-    }
-    
-    engine.camera.zoom = newZoom;
+    if (!rect) return;
+    // Scale the step with the current zoom so it feels even at both ends.
+    const delta = -e.deltaY * 0.0015 * engine.camera.zoom;
+    engine.zoomAt(e.clientX - rect.left, e.clientY - rect.top, delta);
   };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (selectedTool || zonePlacementFor) return; // those clicks place things
+    dragRef.current = { x: e.clientX, y: e.clientY, moved: false };
+  };
+
+  const endDrag = () => { dragRef.current = null; };
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
+
+    // A click that ended a drag was the player moving the camera, not selecting.
+    if (dragRef.current?.moved) { dragRef.current = null; return; }
+    dragRef.current = null;
 
     const screenX = (e.clientX - rect.left - engine.camera.x) / engine.camera.zoom;
     const screenY = (e.clientY - rect.top - engine.camera.y) / engine.camera.zoom;
@@ -223,16 +282,16 @@ export function ParkView() {
 
   return (
     <div className="flex h-screen bg-zinc-900 text-white pt-16">
-      <div className="flex-1 flex items-center justify-center p-4 relative overflow-hidden">
-        <canvas 
-          ref={canvasRef} 
-          width={GAME_CONFIG.CANVAS_WIDTH}
-          height={GAME_CONFIG.CANVAS_HEIGHT}
+      <div ref={stageRef} className="flex-1 relative overflow-hidden">
+        <canvas
+          ref={canvasRef}
           onClick={handleCanvasClick}
+          onMouseDown={handleMouseDown}
+          onMouseUp={endDrag}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           onWheel={handleWheel}
-          className={`bg-zinc-800 border-2 border-zinc-700 rounded-lg shadow-2xl ${(state.phase === 'SETUP' && selectedTool) || zonePlacementFor ? 'cursor-crosshair' : 'cursor-default'}`}
+          className={`absolute inset-0 w-full h-full bg-zinc-800 ${(state.phase === 'SETUP' && selectedTool) || zonePlacementFor ? 'cursor-crosshair' : 'cursor-grab'}`}
         />
         
         {(state.phase === 'SETUP' || state.phase === 'OPERATION') && (

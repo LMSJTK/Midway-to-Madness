@@ -19,6 +19,26 @@ const EXCITEMENT_DECAY_PER_SECOND = 4;
 /** Top speed of an idle worker's aimless drift inside their zone. */
 const ZONE_WANDER_SPEED = 50;
 
+/** Shirt colours, so a crowd reads as people rather than one blue mass. */
+const GUEST_COLORS = [
+  '#3b82f6', '#ef4444', '#22c55e', '#eab308', '#a855f7',
+  '#ec4899', '#14b8a6', '#f97316', '#64748b', '#84cc16',
+];
+
+/** Gap between people standing in a line, in lot units. */
+const QUEUE_SPACING = 14;
+
+/**
+ * Where the nth person in a ride's line stands. The line forms at the front of
+ * the attraction and trails away from it, so a popular ride visibly backs up.
+ */
+function queueSlot(target: PlacedItem, index: number) {
+  return {
+    x: target.x + target.width / 2,
+    y: target.y + target.height + 10 + index * QUEUE_SPACING,
+  };
+}
+
 /** Release any ride slot or queue place the guest is holding. */
 function detachFromTarget(state: GameState, guest: Guest, entity: Entity) {
   const target = guest.targetId ? state.placedItems.find(i => i.id === guest.targetId) : undefined;
@@ -128,7 +148,11 @@ function spawnGuest(world: World, state: GameState) {
   const entity = world.createEntity();
   world.addComponent(entity, 'Position', { x: GAME_CONFIG.ENTRANCE_X, y: GAME_CONFIG.ENTRANCE_Y });
   world.addComponent(entity, 'Velocity', { vx: 0, vy: -GAME_CONFIG.WALK_SPEED });
-  world.addComponent(entity, 'Renderable', { type: 'guest', color: '#3b82f6', size: 4 });
+  world.addComponent(entity, 'Renderable', {
+    type: 'guest',
+    color: GUEST_COLORS[Math.floor(Math.random() * GUEST_COLORS.length)],
+    size: 4,
+  });
   const initialMoney = 50 + Math.random() * 100;
   const portraitCount = spriteRegistry.guestPortraits.length;
   world.addComponent(entity, 'Guest', {
@@ -333,8 +357,6 @@ export function GuestAISystem(world: World, dt: number) {
             // Ride full but queue has room and guest is willing to wait
             guest.state = 'queued';
             target.queue.push(entity);
-            vel.vx = 0;
-            vel.vy = 0;
           } else {
             // Queue too long or full
             guest.state = 'wandering';
@@ -360,12 +382,25 @@ export function GuestAISystem(world: World, dt: number) {
         guest.targetId = null;
         continue;
       }
-      // Check if we're first in line and ride has capacity
-      if (target.queue[0] === entity && target.currentRiders < target.capacity) {
+      // Shuffle up as the line moves, so the queue is visible on the lot.
+      const place = target.queue.indexOf(entity);
+      if (place === 0 && target.currentRiders < target.capacity) {
         target.queue.shift();
         boardGuest(guest, target, entity, vel, state);
+      } else {
+        const slot = queueSlot(target, Math.max(place, 0));
+        const dx = slot.x - pos.x;
+        const dy = slot.y - pos.y;
+        const gap = Math.hypot(dx, dy);
+        if (gap > 4) {
+          const shuffle = Math.min(GAME_CONFIG.WALK_SPEED, gap * 4);
+          vel.vx = (dx / gap) * shuffle;
+          vel.vy = (dy / gap) * shuffle;
+        } else {
+          vel.vx = 0;
+          vel.vy = 0;
+        }
       }
-      // Otherwise keep waiting (vel already 0)
     } else if (guest.state === 'riding' || guest.state === 'eating') {
       guest.timer -= dt;
       if (guest.timer <= 0) {

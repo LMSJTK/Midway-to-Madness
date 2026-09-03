@@ -80,31 +80,49 @@ export function SpriteCanvas({ asset, onAnchorSet }: Props) {
 
     ctx.drawImage(image, ox, oy);
 
-    // Draw isometric grid overlay
+    // Overlay the lot this sprite will stand on, at the size the game draws it:
+    // a grid_w x grid_h footprint projects to one diamond, centred on the anchor.
     if (showGrid && anchor) {
-      const gridW = (asset?.grid_w ?? 1);
-      const gridH = (asset?.grid_h ?? 1);
-      const anchorScreenX = ox + anchor.x;
-      const anchorScreenY = oy + anchor.y;
+      const gridW = asset?.grid_w ?? 1;
+      const gridH = asset?.grid_h ?? 1;
+      const cx = ox + anchor.x;
+      const cy = oy + anchor.y;
+      const halfW = ((gridW + gridH) * TILE_W) / 2;
+      const halfH = halfW / 2;
 
-      ctx.strokeStyle = 'rgba(250, 204, 21, 0.4)';
+      ctx.strokeStyle = 'rgba(250, 204, 21, 0.75)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - halfH);
+      ctx.lineTo(cx + halfW, cy);
+      ctx.lineTo(cx, cy + halfH);
+      ctx.lineTo(cx - halfW, cy);
+      ctx.closePath();
+      ctx.stroke();
+
+      // Cell divisions, so an asymmetric footprint is readable.
+      ctx.strokeStyle = 'rgba(250, 204, 21, 0.25)';
       ctx.lineWidth = 1;
-
-      // Draw iso diamond for each grid cell
-      for (let gx = 0; gx < gridW; gx++) {
-        for (let gy = 0; gy < gridH; gy++) {
-          const cx = anchorScreenX + (gx - gy) * TILE_W;
-          const cy = anchorScreenY + (gx + gy) * TILE_H * -1; // up from anchor
-
-          ctx.beginPath();
-          ctx.moveTo(cx, cy - TILE_H);       // top
-          ctx.lineTo(cx + TILE_W, cy);        // right
-          ctx.lineTo(cx, cy + TILE_H);        // bottom
-          ctx.lineTo(cx - TILE_W, cy);        // left
-          ctx.closePath();
-          ctx.stroke();
-        }
+      for (let i = 1; i < gridW; i++) {
+        const t = i / gridW;
+        ctx.beginPath();
+        ctx.moveTo(cx - halfW + t * halfW, cy - halfH + t * halfH);
+        ctx.lineTo(cx + t * halfW, cy + halfH - t * halfH);
+        ctx.stroke();
       }
+      for (let i = 1; i < gridH; i++) {
+        const t = i / gridH;
+        ctx.beginPath();
+        ctx.moveTo(cx + halfW - t * halfW, cy - halfH + t * halfH);
+        ctx.lineTo(cx - t * halfW, cy + halfH - t * halfH);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = 'rgba(250, 204, 21, 0.8)';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${gridW}x${gridH} lot`, cx, cy + halfH + 12);
+      ctx.textAlign = 'left';
     }
 
     // Draw anchor point
@@ -207,7 +225,11 @@ export function SpriteCanvas({ asset, onAnchorSet }: Props) {
         className="rounded-lg border border-zinc-700 cursor-crosshair w-full"
         style={{ imageRendering: 'pixelated' }}
       />
-      <p className="text-xs text-zinc-500">Click to set the anchor point (the base of the sprite that aligns with the isometric grid).</p>
+      <p className="text-xs text-zinc-500">
+        Click where the sprite meets the ground, at the middle of its base. The yellow
+        diamond is the lot it will stand on in game. Leave it unset and the renderer
+        measures the artwork instead.
+      </p>
     </div>
   );
 }
