@@ -30,9 +30,60 @@ export const LOCATIONS: Location[] = [
   { id: 'loc3', name: 'State Expo', type: 'State', distance: 400, fee: 8000, expectedGuests: 3000, revenueShare: 0.3, biome: 'urban' },
 ];
 
-export interface Staff {
-  maintenance: number;
-  sanitation: number;
+export type StaffRole = 'maintenance' | 'sanitation';
+
+/**
+ * Where a staff member works. `roam` is the old free-for-all: take the nearest
+ * job anywhere on the lot. `ride` posts a mechanic to one kind of attraction —
+ * they ignore everything else and wait at it between breakdowns. `zone` keeps
+ * a worker inside a circle, which spreads a crew out instead of letting them
+ * all chase the same job.
+ */
+export type StaffAssignment =
+  | { kind: 'roam' }
+  | { kind: 'ride'; itemDefId: string }
+  | { kind: 'zone'; x: number; y: number; radius: number };
+
+export interface StaffRecord {
+  id: string;
+  role: StaffRole;
+  name: string;
+  assignment: StaffAssignment;
+}
+
+export const STAFF_HIRE_COST: Record<StaffRole, number> = { maintenance: 500, sanitation: 300 };
+
+export const ZONE_RADIUS_DEFAULT = 300;
+export const ZONE_RADIUS_MIN = 120;
+export const ZONE_RADIUS_MAX = 700;
+
+/**
+ * A mechanic posted to one ride keeps it in better shape: each dedicated
+ * mechanic raises the patrons it serves before breakdown risk starts to ramp.
+ * Capped so stacking a whole crew on one ride isn't the dominant strategy.
+ */
+export const DEDICATED_MECHANIC_QUALITY_BONUS = 0.25;
+export const DEDICATED_MECHANIC_MAX_STACK = 2;
+
+const STAFF_NAMES = [
+  'Dale', 'Marty', 'Rosa', 'Gus', 'Pearl', 'Ike', 'Vera', 'Otis',
+  'Lu', 'Hank', 'Cass', 'Ray', 'Bea', 'Nan', 'Sal', 'Web',
+];
+
+/** True when a point falls inside a zone assignment. */
+export function withinZone(zone: { x: number; y: number; radius: number }, x: number, y: number): boolean {
+  const dx = x - zone.x;
+  const dy = y - zone.y;
+  return dx * dx + dy * dy <= zone.radius * zone.radius;
+}
+
+/** Short human-readable form of an assignment, for panels and tooltips. */
+export function describeAssignment(assignment: StaffAssignment, itemName?: string): string {
+  switch (assignment.kind) {
+    case 'ride': return `Posted to ${itemName ?? assignment.itemDefId}`;
+    case 'zone': return `Zone, ${Math.round(assignment.radius)} radius`;
+    default: return 'Free roam';
+  }
 }
 
 export interface PlacedItem {
@@ -77,16 +128,14 @@ export class StateManager {
       porta_potty: 1,
     } as Record<string, number>,
     visitedLocations: [] as string[],
-    staff: {
-      maintenance: 0,
-      sanitation: 0,
-    } as Staff,
+    staff: [] as StaffRecord[],
     placedItems: [] as PlacedItem[],
     sceneryItems: [] as SceneryItem[],
     priceOverrides: {} as Record<string, number>,
     simSpeed: 'normal' as SimSpeed,
     selectedGuestId: null as number | null,
     selectedItemId: null as string | null,
+    selectedStaffId: null as string | null,
     stats: {
       guestsToday: 0,
       revenueToday: 0,
@@ -96,9 +145,11 @@ export class StateManager {
 
   private listeners: Set<() => void> = new Set();
 
-  subscribe(listener: () => void) {
+  subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+    // Returns void deliberately: this is used directly as a useEffect cleanup,
+    // which must not return a value.
+    return () => { this.listeners.delete(listener); };
   }
 
   notify() {
@@ -137,6 +188,44 @@ export class StateManager {
     const seed = loc.id.split('').reduce((acc, c) => acc * 31 + c.charCodeAt(0), 0);
     this.state.sceneryItems = generateScenery(loc.biome, seed);
     this.notify();
+  }
+
+  /** How many of a role are on the payroll. */
+  staffCount(role: StaffRole): number {
+    return this.state.staff.filter(s => s.role === role).length;
+  }
+
+  hireStaff(role: StaffRole) {
+    const cost = STAFF_HIRE_COST[role];
+    if (this.state.money < cost) return;
+
+    const taken = new Set(this.state.staff.map(s => s.name));
+    const name = STAFF_NAMES.find(n => !taken.has(n)) ?? `Hand ${this.state.staff.length + 1}`;
+    const record: StaffRecord = {
+      id: Math.random().toString(36).slice(2, 11),
+      role,
+      name,
+      assignment: { kind: 'roam' },
+    };
+
+    this.update({
+      staff: [...this.state.staff, record],
+      money: this.state.money - cost,
+      stats: { ...this.state.stats, expensesToday: this.state.stats.expensesToday + cost },
+    });
+  }
+
+  setStaffAssignment(staffId: string, assignment: StaffAssignment) {
+    this.update({
+      staff: this.state.staff.map(s => (s.id === staffId ? { ...s, assignment } : s)),
+    });
+  }
+
+  /** Number of mechanics posted to a given attraction type. */
+  dedicatedMechanics(itemDefId: string): number {
+    return this.state.staff.filter(
+      s => s.role === 'maintenance' && s.assignment.kind === 'ride' && s.assignment.itemDefId === itemDefId,
+    ).length;
   }
 
   /** Record money going out so the day summary can show a real net. */

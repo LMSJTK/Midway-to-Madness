@@ -137,6 +137,38 @@ export interface GhostPreview {
   valid: boolean;
 }
 
+/** Zone being positioned on the lot, following the cursor. */
+export interface ZoneGhost {
+  x: number;
+  y: number;
+  radius: number;
+  role: 'maintenance' | 'sanitation';
+}
+
+/**
+ * toIso is linear, so a circle on the ground projects to an axis-aligned
+ * ellipse: the horizontal axis stretches by root two, the vertical one
+ * shrinks by the same factor.
+ */
+function strokeGroundCircle(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, radius: number,
+  stroke: string, fill?: string,
+) {
+  const c = toIso(x, y);
+  ctx.beginPath();
+  ctx.ellipse(c.x, c.y, radius * Math.SQRT2, radius / Math.SQRT2, 0, 0, Math.PI * 2);
+  if (fill) {
+    ctx.fillStyle = fill;
+    ctx.fill();
+  }
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 6]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
 export class GameEngine {
   public world: World;
   public camera = { x: 0, y: 0, zoom: 1 };
@@ -151,6 +183,7 @@ export class GameEngine {
   public canvas: HTMLCanvasElement | null = null;
   public ctx: CanvasRenderingContext2D | null = null;
   public ghost: GhostPreview | null = null;
+  public zoneGhost: ZoneGhost | null = null;
 
   constructor() {
     this.world = new World();
@@ -234,6 +267,28 @@ export class GameEngine {
        const biome = state.currentLocation?.biome ?? 'meadow';
        const biomeColors = BIOME_CONFIG[biome];
        drawIsoBlock(this.ctx, 0, 0, GAME_CONFIG.MAP_WIDTH, GAME_CONFIG.MAP_HEIGHT, 20, biomeColors.groundColor);
+
+       // Staff patches, painted on the ground before anything stands on it.
+       for (const member of state.staff) {
+         if (member.assignment.kind !== 'zone') continue;
+         const focused = state.selectedStaffId === member.id;
+         const hue = member.role === 'maintenance' ? '249, 115, 22' : '203, 213, 225';
+         strokeGroundCircle(
+           this.ctx,
+           member.assignment.x, member.assignment.y, member.assignment.radius,
+           `rgba(${hue}, ${focused ? 0.95 : 0.35})`,
+           focused ? `rgba(${hue}, 0.10)` : undefined,
+         );
+       }
+
+       if (this.zoneGhost) {
+         const hue = this.zoneGhost.role === 'maintenance' ? '249, 115, 22' : '203, 213, 225';
+         strokeGroundCircle(
+           this.ctx,
+           this.zoneGhost.x, this.zoneGhost.y, this.zoneGhost.radius,
+           `rgba(${hue}, 0.9)`, `rgba(${hue}, 0.12)`,
+         );
+       }
 
        const renderItems: RenderItem[] = [];
 
@@ -447,6 +502,30 @@ export class GameEngine {
            this.ctx.beginPath();
            this.ctx.ellipse(p.x, p.y, ren.size * 2, ren.size, 0, 0, Math.PI * 2);
            this.ctx.stroke();
+         }
+       }
+
+       // Show which attraction the highlighted mechanic is posted to
+       if (state.selectedStaffId !== null) {
+         const member = state.staff.find(s => s.id === state.selectedStaffId);
+         if (member && member.assignment.kind === 'ride') {
+           const defId = member.assignment.itemDefId;
+           for (const item of state.placedItems) {
+             if (item.itemDefId !== defId) continue;
+             const q1 = toIso(item.x, item.y);
+             const q2 = toIso(item.x + item.width, item.y);
+             const q3 = toIso(item.x + item.width, item.y + item.height);
+             const q4 = toIso(item.x, item.y + item.height);
+             this.ctx.strokeStyle = 'rgba(249, 115, 22, 0.95)';
+             this.ctx.lineWidth = 3;
+             this.ctx.beginPath();
+             this.ctx.moveTo(q1.x, q1.y);
+             this.ctx.lineTo(q2.x, q2.y);
+             this.ctx.lineTo(q3.x, q3.y);
+             this.ctx.lineTo(q4.x, q4.y);
+             this.ctx.closePath();
+             this.ctx.stroke();
+           }
          }
        }
 
