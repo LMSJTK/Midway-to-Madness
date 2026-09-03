@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { gameStateManager, LOCATIONS, Location, Staff } from '../game/gameState';
+import { gameStateManager, LOCATIONS, Location, StaffRole, STAFF_HIRE_COST } from '../game/gameState';
 import { ITEM_DEFINITIONS, ItemCategory, CATEGORY_DEFAULTS, getItemsByCategory } from '../game/items';
 
 const CATEGORY_ORDER: ItemCategory[] = ['kiddie', 'major', 'spectacular', 'food', 'bathroom', 'gameStall', 'shop', 'performance'];
@@ -41,15 +41,8 @@ export function MapView() {
     gameStateManager.spend(def.cost);
   };
 
-  const handleHire = (type: keyof Staff, cost: number) => {
-    if (state.money < cost) return;
-    gameStateManager.update({
-      staff: {
-        ...state.staff,
-        [type]: state.staff[type] + 1
-      }
-    });
-    gameStateManager.spend(cost);
+  const handleHire = (role: StaffRole) => {
+    gameStateManager.hireStaff(role);
   };
 
   // Nothing on the board is affordable and there is no other way to earn:
@@ -153,30 +146,38 @@ export function MapView() {
 
       <div className="mt-6 bg-zinc-900 border border-zinc-700 rounded-xl p-6 shadow-lg w-full max-w-5xl">
         <h2 className="text-2xl font-bold text-orange-400 mb-4">Staff Management</h2>
+        <p className="text-sm text-zinc-400 mb-4">Postings are set on the lot during setup.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[
-            { id: 'maintenance', name: 'Maintenance Worker', cost: 500, desc: 'Fixes broken rides automatically.' },
-            { id: 'sanitation', name: 'Sanitation Worker', cost: 300, desc: 'Cleans up trash around the park.' },
-          ].map((item) => (
+          {([
+            { id: 'maintenance', name: 'Maintenance Worker', desc: 'Repairs breakdowns. Post one to a ride and it also breaks down less often.' },
+            { id: 'sanitation', name: 'Sanitation Worker', desc: 'Clears litter and services bathrooms. Give one a zone to spread your crew out.' },
+          ] as { id: StaffRole; name: string; desc: string }[]).map((item) => {
+            const cost = STAFF_HIRE_COST[item.id];
+            const crew = state.staff.filter(s => s.role === item.id);
+            return (
             <div key={item.id} className="bg-zinc-800 p-4 rounded-lg border border-zinc-700 flex flex-col justify-between">
               <div>
                 <h3 className="font-bold text-lg">{item.name}</h3>
                 <p className="text-xs text-zinc-400 mt-1 mb-2">{item.desc}</p>
                 <div className="text-sm mb-4">
-                  Hired: <span className="font-mono text-orange-400">{state.staff[item.id as keyof Staff]}</span>
+                  Hired: <span className="font-mono text-orange-400">{crew.length}</span>
+                  {crew.length > 0 && (
+                    <span className="text-zinc-500 text-xs"> — {crew.map(s => s.name).join(', ')}</span>
+                  )}
                 </div>
               </div>
               <button
-                onClick={() => handleHire(item.id as keyof Staff, item.cost)}
-                disabled={state.money < item.cost}
+                onClick={() => handleHire(item.id)}
+                disabled={state.money < cost}
                 className={`w-full py-2 rounded text-sm font-semibold transition-colors ${
-                  state.money >= item.cost ? 'bg-orange-600 hover:bg-orange-500 text-white' : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
+                  state.money >= cost ? 'bg-orange-600 hover:bg-orange-500 text-white' : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
                 }`}
               >
-                Hire (${item.cost})
+                Hire (${cost})
               </button>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

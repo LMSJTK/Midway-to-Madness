@@ -1,5 +1,8 @@
-import { World, Entity, Velocity, Guest } from './ecs';
-import { gameStateManager, PlacedItem } from './gameState';
+import { World, Entity, Position, Velocity, Guest, StaffMember } from './ecs';
+import {
+  gameStateManager, PlacedItem, StaffRecord, withinZone,
+  DEDICATED_MECHANIC_QUALITY_BONUS, DEDICATED_MECHANIC_MAX_STACK,
+} from './gameState';
 import { INSTANT_CATEGORIES, STOCK_CATEGORIES, ITEM_DEFINITIONS, ItemCategory } from './items';
 import { spriteRegistry } from './spriteRegistry';
 import { GAME_CONFIG, DAY_LENGTH_SECONDS } from './constants';
@@ -12,6 +15,9 @@ type GameState = typeof gameStateManager.state;
  * (100 - excitement) — go negative for good after two or three rides.
  */
 const EXCITEMENT_DECAY_PER_SECOND = 4;
+
+/** Top speed of an idle worker's aimless drift inside their zone. */
+const ZONE_WANDER_SPEED = 50;
 
 /** Release any ride slot or queue place the guest is holding. */
 function detachFromTarget(state: GameState, guest: Guest, entity: Entity) {
@@ -41,6 +47,23 @@ function cheapestTicket(state: GameState): number {
   return min;
 }
 
+/**
+ * Patrons an attraction serves before breakdown risk starts to ramp. A mechanic
+ * posted to it looks after it between riders, so it lasts longer; the bonus
+ * stops stacking after a couple of them.
+ */
+export function effectiveQuality(state: GameState, itemDefId: string): number {
+  const base = ITEM_DEFINITIONS[itemDefId]?.quality ?? 50;
+  const posted = Math.min(
+    state.staff.reduce(
+      (n, s) => n + (s.role === 'maintenance' && s.assignment.kind === 'ride' && s.assignment.itemDefId === itemDefId ? 1 : 0),
+      0,
+    ),
+    DEDICATED_MECHANIC_MAX_STACK,
+  );
+  return base * (1 + DEDICATED_MECHANIC_QUALITY_BONUS * posted);
+}
+
 /** Shared logic: guest boards a ride/facility and pays */
 function boardGuest(
   guest: Guest,
@@ -62,9 +85,8 @@ function boardGuest(
   state.stats.revenueToday += netRevenue;
   state.money += netRevenue;
 
-  // Quality-based breakdown
-  const def = ITEM_DEFINITIONS[target.itemDefId];
-  const quality = def?.quality ?? 50;
+  // Quality-based breakdown, softened by any mechanic posted to this ride.
+  const quality = effectiveQuality(state, target.itemDefId);
   if (target.patronsServed > quality) {
     const excess = target.patronsServed - quality;
     const breakdownChance = 1 - Math.exp(-excess * 0.05);
@@ -375,6 +397,85 @@ export function MovementSystem(world: World, dt: number) {
   }
 }
 
+/** Centre of an attraction's footprint. */
+function itemCentre(item: PlacedItem) {
+  return { x: item.x + item.width / 2, y: item.y + item.height / 2 };
+}
+
+/** Whether this worker's posting lets them take on a given attraction. */
+function canService(record: StaffRecord | undefined, item: PlacedItem): boolean {
+  if (!record) return true;
+  const a = record.assignment;
+  if (a.kind === 'ride') return item.itemDefId === a.itemDefId;
+  if (a.kind === 'zone') {
+    const c = itemCentre(item);
+    return withinZone(a, c.x, c.y);
+  }
+  return true;
+}
+
+/** Whether a loose point (a piece of litter) is this worker's to deal with. */
+function canReach(record: StaffRecord | undefined, x: number, y: number): boolean {
+  if (!record) return true;
+  const a = record.assignment;
+  if (a.kind === 'zone') return withinZone(a, x, y);
+  // A mechanic posted to a ride has no business chasing anything else.
+  if (a.kind === 'ride') return false;
+  return true;
+}
+
+/**
+ * Where a worker drifts when there is nothing to do: a posted mechanic waits at
+ * their ride, a zoned worker stays inside their circle, everyone else mills
+ * around. Returns true when it has set a velocity.
+ */
+function idleMovement(record: StaffRecord | undefined, pos: Position, vel: Velocity, staff: StaffMember, state: GameState): boolean {
+  const a = record?.assignment;
+  if (!a) return false;
+
+  if (a.kind === 'ride') {
+    const post = state.placedItems.find(i => i.itemDefId === a.itemDefId);
+    if (!post) return false; // the ride isn't set up here; mill around instead
+    const target = { x: post.x + post.width / 2, y: post.y + post.height + 15 };
+    const dx = target.x - pos.x;
+    const dy = target.y - pos.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > 20) {
+      vel.vx = (dx / dist) * GAME_CONFIG.STAFF_SPEED;
+      vel.vy = (dy / dist) * GAME_CONFIG.STAFF_SPEED;
+      staff.timer = 0.4;
+    } else {
+      // Standing by, shifting their weight.
+      vel.vx = (Math.random() - 0.5) * 8;
+      vel.vy = (Math.random() - 0.5) * 8;
+      staff.timer = 1 + Math.random() * 2;
+    }
+    return true;
+  }
+
+  if (a.kind === 'zone') {
+    const dx = a.x - pos.x;
+    const dy = a.y - pos.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > a.radius * 0.85) {
+      // Drifting out of their patch — head back in.
+      vel.vx = (dx / Math.max(dist, 1)) * GAME_CONFIG.STAFF_SPEED;
+      vel.vy = (dy / Math.max(dist, 1)) * GAME_CONFIG.STAFF_SPEED;
+      staff.timer = 0.6;
+    } else {
+      vel.vx = (Math.random() - 0.5) * ZONE_WANDER_SPEED;
+      vel.vy = (Math.random() - 0.5) * ZONE_WANDER_SPEED;
+      // Re-check before this heading could carry them past the edge, otherwise
+      // a long stroll picked up near the boundary walks them out of the zone.
+      const slack = Math.max(a.radius - dist, 0);
+      staff.timer = Math.min(2 + Math.random() * 3, Math.max(0.3, slack / ZONE_WANDER_SPEED));
+    }
+    return true;
+  }
+
+  return false;
+}
+
 /** A repaired ride starts its wear count over, otherwise it breaks again immediately. */
 function repairItem(target: PlacedItem) {
   target.isBroken = false;
@@ -387,8 +488,7 @@ export function StaffAISystem(world: World, dt: number) {
   if (state.phase !== 'OPERATION') return;
 
   const staffEntities = world.getEntitiesWith(['Staff', 'Position', 'Velocity']);
-  let maintCount = 0;
-  let saniCount = 0;
+  const roster = new Map(state.staff.map(s => [s.id, s]));
 
   const claimedRideTargets = new Set<string>();
   const claimedBathroomTargets = new Set<string>();
@@ -414,27 +514,28 @@ export function StaffAISystem(world: World, dt: number) {
     const pos = world.getComponent(entity, 'Position')!;
     const vel = world.getComponent(entity, 'Velocity')!;
 
-    if (staff.type === 'maintenance') maintCount++;
-    if (staff.type === 'sanitation') saniCount++;
+    const record = roster.get(staff.staffId);
 
     if (staff.state === 'wandering') {
       staff.timer -= dt;
       if (staff.timer <= 0) {
         if (staff.type === 'maintenance') {
-          const availableBrokenRides = state.placedItems.filter(i => i.isBroken && i.type !== 'bathroom' && !claimedRideTargets.has(i.id));
-          const brokenRide = (availableBrokenRides.length > 0 ? availableBrokenRides : state.placedItems.filter(i => i.isBroken && i.type !== 'bathroom'))[0];
+          const mine = state.placedItems.filter(i => i.isBroken && i.type !== 'bathroom' && canService(record, i));
+          const unclaimed = mine.filter(i => !claimedRideTargets.has(i.id));
+          const brokenRide = (unclaimed.length > 0 ? unclaimed : mine)[0];
           if (brokenRide) {
             staff.targetId = brokenRide.id;
             staff.state = 'walking';
             claimedRideTargets.add(brokenRide.id);
-          } else {
+          } else if (!idleMovement(record, pos, vel, staff, state)) {
             vel.vx = (Math.random() - 0.5) * 50;
             vel.vy = (Math.random() - 0.5) * 50;
             staff.timer = 2 + Math.random() * 3;
           }
         } else if (staff.type === 'sanitation') {
-          const availableBrokenBathrooms = state.placedItems.filter(i => i.isBroken && i.type === 'bathroom' && !claimedBathroomTargets.has(i.id));
-          const brokenBathroom = (availableBrokenBathrooms.length > 0 ? availableBrokenBathrooms : state.placedItems.filter(i => i.isBroken && i.type === 'bathroom'))[0];
+          const mineBathrooms = state.placedItems.filter(i => i.isBroken && i.type === 'bathroom' && canService(record, i));
+          const unclaimedBathrooms = mineBathrooms.filter(i => !claimedBathroomTargets.has(i.id));
+          const brokenBathroom = (unclaimedBathrooms.length > 0 ? unclaimedBathrooms : mineBathrooms)[0];
           if (brokenBathroom) {
             staff.targetId = brokenBathroom.id;
             staff.state = 'walking';
@@ -448,6 +549,7 @@ export function StaffAISystem(world: World, dt: number) {
                 if (claimedTrashTargets.has(t)) continue;
 
                 const tPos = world.getComponent(t, 'Position')!;
+                if (!canReach(record, tPos.x, tPos.y)) continue;
                 const dist = Math.pow(tPos.x - pos.x, 2) + Math.pow(tPos.y - pos.y, 2);
                 if (dist < minDist) {
                   minDist = dist;
@@ -458,8 +560,12 @@ export function StaffAISystem(world: World, dt: number) {
                 staff.targetId = closest;
                 staff.state = 'walking';
                 claimedTrashTargets.add(closest);
+              } else if (!idleMovement(record, pos, vel, staff, state)) {
+                vel.vx = (Math.random() - 0.5) * 50;
+                vel.vy = (Math.random() - 0.5) * 50;
+                staff.timer = 2 + Math.random() * 3;
               }
-            } else {
+            } else if (!idleMovement(record, pos, vel, staff, state)) {
               vel.vx = (Math.random() - 0.5) * 50;
               vel.vy = (Math.random() - 0.5) * 50;
               staff.timer = 2 + Math.random() * 3;
@@ -546,22 +652,29 @@ export function StaffAISystem(world: World, dt: number) {
     if (pos.y > GAME_CONFIG.MAP_HEIGHT) pos.y = GAME_CONFIG.MAP_HEIGHT;
   }
 
-  // Spawn missing staff
-  while (maintCount < state.staff.maintenance) {
-    const entity = world.createEntity();
-    world.addComponent(entity, 'Position', { x: GAME_CONFIG.ENTRANCE_X, y: GAME_CONFIG.ENTRANCE_Y });
-    world.addComponent(entity, 'Velocity', { vx: 0, vy: -GAME_CONFIG.STAFF_SPEED });
-    world.addComponent(entity, 'Renderable', { type: 'staff', color: '#f97316', size: 4 }); // Orange
-    world.addComponent(entity, 'Staff', { type: 'maintenance', targetId: null, state: 'wandering', timer: 0 });
-    maintCount++;
+  // Put one worker on the lot for every name on the payroll.
+  const onDuty = new Set<string>();
+  for (const entity of staffEntities) {
+    onDuty.add(world.getComponent(entity, 'Staff')!.staffId);
   }
-  while (saniCount < state.staff.sanitation) {
+
+  for (const member of state.staff) {
+    if (onDuty.has(member.id)) continue;
     const entity = world.createEntity();
     world.addComponent(entity, 'Position', { x: GAME_CONFIG.ENTRANCE_X, y: GAME_CONFIG.ENTRANCE_Y });
     world.addComponent(entity, 'Velocity', { vx: 0, vy: -GAME_CONFIG.STAFF_SPEED });
-    world.addComponent(entity, 'Renderable', { type: 'staff', color: '#f8fafc', size: 4 }); // White
-    world.addComponent(entity, 'Staff', { type: 'sanitation', targetId: null, state: 'wandering', timer: 0 });
-    saniCount++;
+    world.addComponent(entity, 'Renderable', {
+      type: 'staff',
+      color: member.role === 'maintenance' ? '#f97316' : '#f8fafc',
+      size: 4,
+    });
+    world.addComponent(entity, 'Staff', {
+      staffId: member.id,
+      type: member.role,
+      targetId: null,
+      state: 'wandering',
+      timer: 0,
+    });
   }
 }
 

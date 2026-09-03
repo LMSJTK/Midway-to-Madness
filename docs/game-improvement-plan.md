@@ -54,6 +54,32 @@ Ordered by player impact. Each row is a one-PR fix; the first three could ship t
 | 17 | Low | Editor writes files from unsanitized request fields | `generate.ts` joins `category` and `assetId` straight into paths. | Slug-whitelist both. |
 | 18 | High | A production build renders a blank page under `vite preview` | The `/assets` dev proxy (meant to reach the sprite server) is inherited by preview and captures Vite's own bundle directory, `dist/assets/`, so the app's JS and CSS return 500. Any host that honors `server.proxy` sees the same. | Set `build.assetsDir` to something like `static`, or move sprites out of `/assets`. |
 
+## 3.5 Staff postings (added out of band, shipped)
+
+Requested between Phase 0 and Phase 1, and taken early because it reshapes the
+staff model that Phase 2's save/load and wages will serialize — cheaper now than
+after.
+
+Staff were two integers (`{ maintenance: 2, sanitation: 1 }`) with no individual
+identity, so there was nothing to assign. They are now a roster of named workers,
+each with a posting:
+
+- **Free roam** — the old behavior, unchanged.
+- **Posted to a ride** (mechanics) — they service only that attraction type,
+  wait beside it between breakdowns so repairs start immediately, and raise the
+  patrons it serves before breakdown risk ramps (+25% each, capped at two).
+- **Zone** (either role) — a circle on the lot, placed by click and sized by
+  slider. They only take jobs inside it and drift back when they near the edge,
+  which spreads a crew out instead of letting them all chase the same job.
+
+Zones draw on the ground as isometric ellipses; hovering a mechanic outlines the
+ride they are posted to. `npm run check:staff` drives the real systems headless
+and asserts the behavior.
+
+This lands an early slice of Phase 3's preventive maintenance (§6.5); the rest of
+that item — condition draining with use, paid repairs, idle inspection — still
+stands.
+
 ## 4. Phase 1 — Make it look like a carnival (2–3 weeks)
 
 Visual work that needs no new art comes first; art through the editor follows.

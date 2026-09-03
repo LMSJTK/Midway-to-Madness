@@ -4,13 +4,26 @@ import { gameStateManager } from '../game/gameState';
 import { GuestInspector } from './ParkView/GuestInspector';
 import { ItemInspector } from './ParkView/ItemInspector';
 import { BuildToolbar } from './ParkView/BuildToolbar';
+import { StaffPanel } from './ParkView/StaffPanel';
 import { ITEM_DEFINITIONS } from '../game/items';
 import { GAME_CONFIG } from '../game/constants';
+import { ZONE_RADIUS_DEFAULT } from '../game/gameState';
 
 export function ParkView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [state, setState] = useState(gameStateManager.state);
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
+  const [zonePlacementFor, setZonePlacementFor] = useState<string | null>(null);
+
+  /** Translate a mouse event into lot coordinates. */
+  const toLotCoords = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    return fromIso(
+      (e.clientX - rect.left - engine.camera.x) / engine.camera.zoom,
+      (e.clientY - rect.top - engine.camera.y) / engine.camera.zoom,
+    );
+  };
 
   useEffect(() => {
     const unsubscribe = gameStateManager.subscribe(() => {
@@ -43,15 +56,28 @@ export function ParkView() {
   }, []);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (zonePlacementFor) {
+      const member = state.staff.find(s => s.id === zonePlacementFor);
+      const pos = toLotCoords(e);
+      engine.ghost = null;
+      engine.zoneGhost = member && pos
+        ? {
+            x: pos.x,
+            y: pos.y,
+            radius: member.assignment.kind === 'zone' ? member.assignment.radius : ZONE_RADIUS_DEFAULT,
+            role: member.role,
+          }
+        : null;
+      return;
+    }
+    engine.zoneGhost = null;
+
     if (state.phase !== 'SETUP' || !selectedTool) {
       engine.ghost = null;
       return;
     }
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const screenX = (e.clientX - rect.left - engine.camera.x) / engine.camera.zoom;
-    const screenY = (e.clientY - rect.top - engine.camera.y) / engine.camera.zoom;
-    const logicalPos = fromIso(screenX, screenY);
+    const logicalPos = toLotCoords(e);
+    if (!logicalPos) return;
     const def = ITEM_DEFINITIONS[selectedTool];
     const valid = def
       ? gameStateManager.canPlaceItem(selectedTool, logicalPos.x - def.width / 2, logicalPos.y - def.height / 2)
@@ -61,12 +87,17 @@ export function ParkView() {
 
   const handleMouseLeave = () => {
     engine.ghost = null;
+    engine.zoneGhost = null;
   };
 
   // Clear ghost when tool is deselected
   useEffect(() => {
     if (!selectedTool) engine.ghost = null;
   }, [selectedTool]);
+
+  useEffect(() => {
+    if (!zonePlacementFor) engine.zoneGhost = null;
+  }, [zonePlacementFor]);
 
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     const zoomSensitivity = 0.001;
@@ -92,6 +123,23 @@ export function ParkView() {
 
     const screenX = (e.clientX - rect.left - engine.camera.x) / engine.camera.zoom;
     const screenY = (e.clientY - rect.top - engine.camera.y) / engine.camera.zoom;
+
+    // Dropping a worker's patch takes priority over everything else.
+    if (zonePlacementFor) {
+      const member = state.staff.find(s => s.id === zonePlacementFor);
+      const pos = fromIso(screenX, screenY);
+      if (member) {
+        gameStateManager.setStaffAssignment(member.id, {
+          kind: 'zone',
+          x: Math.round(pos.x),
+          y: Math.round(pos.y),
+          radius: member.assignment.kind === 'zone' ? member.assignment.radius : ZONE_RADIUS_DEFAULT,
+        });
+      }
+      setZonePlacementFor(null);
+      engine.zoneGhost = null;
+      return;
+    }
 
     if (state.phase === 'OPERATION' || state.phase === 'SETUP') {
       // In SETUP with a tool selected, place items instead of selecting
@@ -184,9 +232,13 @@ export function ParkView() {
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           onWheel={handleWheel}
-          className={`bg-zinc-800 border-2 border-zinc-700 rounded-lg shadow-2xl ${state.phase === 'SETUP' && selectedTool ? 'cursor-crosshair' : 'cursor-default'}`}
+          className={`bg-zinc-800 border-2 border-zinc-700 rounded-lg shadow-2xl ${(state.phase === 'SETUP' && selectedTool) || zonePlacementFor ? 'cursor-crosshair' : 'cursor-default'}`}
         />
         
+        {(state.phase === 'SETUP' || state.phase === 'OPERATION') && (
+          <StaffPanel zonePlacementFor={zonePlacementFor} setZonePlacementFor={setZonePlacementFor} />
+        )}
+
         {state.selectedGuestId !== null && state.phase === 'OPERATION' && <GuestInspector entityId={state.selectedGuestId} />}
         {state.selectedItemId !== null && <ItemInspector itemId={state.selectedItemId} />}
 
